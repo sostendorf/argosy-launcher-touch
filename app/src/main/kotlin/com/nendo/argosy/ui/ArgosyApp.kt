@@ -44,6 +44,11 @@ import com.nendo.argosy.ui.components.BackgroundSyncConflictDialog
 import com.nendo.argosy.ui.components.FooterHints
 import com.nendo.argosy.ui.components.FooterHost
 import com.nendo.argosy.ui.components.FooterHostController
+import com.nendo.argosy.ui.components.TouchBottomNav
+import com.nendo.argosy.ui.components.TouchTopBar
+import com.nendo.argosy.ui.components.touchDestinations
+import com.nendo.argosy.ui.input.LocalTouchUi
+import com.nendo.argosy.ui.input.rememberTouchUiEnabled
 import com.nendo.argosy.ui.components.LocalFooterHost
 import com.nendo.argosy.data.sync.ConflictResolution
 import com.nendo.argosy.ui.components.MainDrawer
@@ -1047,7 +1052,35 @@ fun ArgosyApp(
         .collectAsState()
         .let { state -> remember { derivedStateOf { state.value.isProcessing } } }
 
+    val touchUiAvailable = rememberTouchUiEnabled()
+    val touchChromeVisible = touchUiAvailable &&
+        !uiState.isFirstRun &&
+        currentRoute != Screen.FirstRun.route
+
+    val touchNavDestinations = remember(viewModel.drawerItems) {
+        touchDestinations(viewModel.drawerItems.map { it.route to it.label })
+    }
+    val touchBarTitle = viewModel.drawerItems
+        .firstOrNull { it.route.substringBefore("?") == currentRoute?.substringBefore("?") }
+        ?.label
+        ?: "Argosy"
+
+    /**
+     * A bottom-bar tap returns to a destination that is already on the stack instead of stacking a
+     * second copy of it. The drawer's navigate builds its back stack around Home, which leaves a tab
+     * tapped from a pushed screen - game details above library, say - depending on that Home entry
+     * still being there to pop back to. Popping to the destination itself does not.
+     */
+    val navigateFromTouchBar: (String) -> Unit = { route ->
+        if (route.substringBefore("?") != currentRoute?.substringBefore("?")) {
+            if (!navController.popBackStack(route, false)) {
+                navigateFromDrawer(route)
+            }
+        }
+    }
+
     CompositionLocalProvider(
+        LocalTouchUi provides touchChromeVisible,
         LocalInputDispatcher provides inputDispatcher,
         LocalGamepadInputHandler provides viewModel.gamepadInputHandler,
         LocalABIconsSwapped provides uiState.abIconsSwapped,
@@ -1123,7 +1156,7 @@ fun ArgosyApp(
 
                 ModalNavigationDrawer(
                 drawerState = drawerState,
-                gesturesEnabled = !uiState.isFirstRun,
+                gesturesEnabled = !uiState.isFirstRun && !touchChromeVisible,
                 scrimColor = scrimColor,
                 drawerContent = {
                     MainDrawer(
@@ -1904,23 +1937,56 @@ fun ArgosyApp(
                         }
                     }
                 } else {
-                    NavGraph(
-                        navController = navController,
-                        startDestination = startDestination,
-                        onDrawerToggle = { if (isDrawerOpen) closeDrawer() else openDrawer() },
-                        argosyViewModel = viewModel,
-                        onPlayMedia = { itemId, startOver ->
-                            activity?.dualScreenManager?.playMediaItem(itemId, startOver)
-                                ?: PlayerActivity.start(
-                                    context = context,
-                                    args = PlayerArgs(
-                                        itemId = itemId,
-                                        startPositionMs = if (startOver) 0L else -1L
+                    val navGraph: @Composable (Modifier) -> Unit = { graphModifier ->
+                        NavGraph(
+                            navController = navController,
+                            startDestination = startDestination,
+                            onDrawerToggle = { if (isDrawerOpen) closeDrawer() else openDrawer() },
+                            argosyViewModel = viewModel,
+                            onPlayMedia = { itemId, startOver ->
+                                activity?.dualScreenManager?.playMediaItem(itemId, startOver)
+                                    ?: PlayerActivity.start(
+                                        context = context,
+                                        args = PlayerArgs(
+                                            itemId = itemId,
+                                            startPositionMs = if (startOver) 0L else -1L
+                                        )
                                     )
-                                )
-                        },
-                        modifier = Modifier.blur(contentBlur)
-                    )
+                            },
+                            modifier = graphModifier
+                        )
+                    }
+                    if (touchChromeVisible) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            TouchTopBar(
+                                title = touchBarTitle,
+                                onMenuClick = { if (isDrawerOpen) closeDrawer() else openDrawer() },
+                                onSearchClick = {
+                                    if (currentRoute != Screen.Search.route) {
+                                        navController.navigate(Screen.Search.route) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.blur(contentBlur)
+                            )
+                            Box(modifier = Modifier.weight(1f)) {
+                                navGraph(Modifier.blur(contentBlur))
+                            }
+                            FooterHost(
+                                controller = footerHostController,
+                                modifier = Modifier.blur(contentBlur)
+                            )
+                            TouchBottomNav(
+                                destinations = touchNavDestinations,
+                                currentRoute = currentRoute,
+                                onNavigate = navigateFromTouchBar,
+                                modifier = Modifier.blur(contentBlur)
+                            )
+                        }
+                    } else {
+                        navGraph(Modifier.blur(contentBlur))
+                    }
                 }
             }
 
@@ -2054,10 +2120,12 @@ fun ArgosyApp(
                 )
             }
 
-            FooterHost(
-                controller = footerHostController,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+            if (!touchChromeVisible) {
+                FooterHost(
+                    controller = footerHostController,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
             }
         }
     }

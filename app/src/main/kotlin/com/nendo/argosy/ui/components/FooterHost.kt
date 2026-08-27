@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.input.LocalTouchUi
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.Motion
 
@@ -93,6 +94,14 @@ fun FooterHost(
     modifier: Modifier = Modifier
 ) {
     val entry = controller.top
+    if (LocalTouchUi.current) {
+        TouchActionBar(
+            hints = entry?.hints.orEmpty(),
+            onHintClick = entry?.onHintClick,
+            modifier = modifier
+        )
+        return
+    }
     CompositionLocalProvider(LocalFooterStyle provides (entry?.style ?: FooterStyleConfig())) {
         when (entry?.variant) {
             FooterVariant.SUBTLE -> SubtleFooterBar(
@@ -120,8 +129,9 @@ val FooterHostController.isBarVisible: Boolean
 @Composable
 fun FooterSpacer() {
     val controller = LocalFooterHost.current
+    val reserve = controller.isBarVisible && !LocalTouchUi.current
     val height by animateDpAsState(
-        targetValue = if (controller.isBarVisible) Dimens.footerHeight else 0.dp,
+        targetValue = if (reserve) Dimens.footerHeight else 0.dp,
         animationSpec = tween(Motion.durationContent, easing = Motion.argosyEase),
         label = "footer-spacer",
     )

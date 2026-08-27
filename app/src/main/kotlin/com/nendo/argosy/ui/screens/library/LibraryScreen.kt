@@ -103,6 +103,7 @@ import com.nendo.argosy.ui.components.SyncOverlay
 import com.nendo.argosy.ui.screens.collections.dialogs.CreateCollectionDialog
 import com.nendo.argosy.ui.icons.InputIcons
 import com.nendo.argosy.ui.input.DiscPickerInputHandler
+import com.nendo.argosy.ui.input.LocalTouchUi
 import com.nendo.argosy.ui.input.MemcardPickerInputHandler
 import com.nendo.argosy.ui.input.VariantPickerInputHandler
 import com.nendo.argosy.ui.input.HardcoreConflictInputHandler
@@ -152,6 +153,7 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val touchUi = LocalTouchUi.current
     val initialGridIndex = remember { viewModel.gameIndexToGridIndex(uiState.focusedIndex) }
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = initialGridIndex)
     val platformGridState = rememberLazyGridState()
@@ -434,7 +436,7 @@ fun LibraryScreen(
                                                     showPlatformBadge = uiState.currentPlatformIndex < 0,
                                                     coverPathOverride = uiState.repairedCoverPaths[item.game.id],
                                                     onCoverLoadFailed = viewModel::repairCoverImage,
-                                                    onClick = { viewModel.handleItemTap(item.gameIndex, onGameSelect) },
+                                                    onClick = { viewModel.handleItemTap(item.gameIndex, onGameSelect, detailsOnTap = touchUi) },
                                                     onLongClick = { viewModel.handleItemLongPress(item.gameIndex) },
                                                     modifier = Modifier.zIndex(if (isFocused) 1f else 0f)
                                                 )
@@ -986,6 +988,7 @@ private fun LibraryMasonryGrid(
     footerHeightPx: Int,
     onGameSelect: (Long) -> Unit
 ) {
+    val touchUi = LocalTouchUi.current
     val initialIndex = remember { viewModel.gameIndexToGridIndex(uiState.focusedIndex) }
     val staggeredState = rememberLazyStaggeredGridState(initialFirstVisibleItemIndex = initialIndex)
     // Local flag so the centering effect and the scroll listener read the same
@@ -1120,7 +1123,7 @@ private fun LibraryMasonryGrid(
                         showPlatformBadge = uiState.currentPlatformIndex < 0,
                         coverPathOverride = uiState.repairedCoverPaths[gridItem.game.id],
                         onCoverLoadFailed = viewModel::repairCoverImage,
-                        onClick = { viewModel.handleItemTap(gridItem.gameIndex, onGameSelect) },
+                        onClick = { viewModel.handleItemTap(gridItem.gameIndex, onGameSelect, detailsOnTap = touchUi) },
                         onLongClick = { viewModel.handleItemLongPress(gridItem.gameIndex) },
                         modifier = Modifier
                             .aspectRatio(ratio)

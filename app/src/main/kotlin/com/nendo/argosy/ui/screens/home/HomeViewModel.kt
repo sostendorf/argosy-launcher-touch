@@ -1109,18 +1109,34 @@ class HomeViewModel @Inject constructor(
     // --- Public API: Game Interaction ---
 
     @Suppress("UNUSED_PARAMETER")
-    fun handleItemTap(index: Int, _onGameSelect: (Long) -> Unit) {
+    /**
+     * [detailsOnTap] is the touch reading of a tap: one tap opens the game's details rather than
+     * acting on it. Without it a tap is the gamepad's confirm, which downloads or launches - a fine
+     * answer when a focus ring told you what you were about to act on, and a surprising one when
+     * your finger is the cursor and the game details you wanted are one screen further in.
+     */
+    fun handleItemTap(index: Int, onGameSelect: (Long) -> Unit, detailsOnTap: Boolean = false) {
         val state = _uiState.value
         if (index < 0 || index >= state.currentItems.size) return
 
-        if (index != state.focusedGameIndex) {
+        if (!detailsOnTap && index != state.focusedGameIndex) {
             setFocusIndex(index)
             return
+        }
+        if (detailsOnTap && index != state.focusedGameIndex) {
+            setFocusIndex(index)
         }
 
         when (val item = state.currentItems[index]) {
             is HomeRowItem.Game -> {
                 val game = item.game
+                if (detailsOnTap) {
+                    gameNavigationContext.setContext(
+                        state.currentItems.mapNotNull { (it as? HomeRowItem.Game)?.game?.id }
+                    )
+                    onGameSelect(game.id)
+                    return
+                }
                 val indicator = state.downloadIndicatorFor(game.id)
                 when {
                     game.needsInstall -> downloadDelegate.installApk(viewModelScope, game.id)

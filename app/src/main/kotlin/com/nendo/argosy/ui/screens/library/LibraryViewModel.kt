@@ -1785,15 +1785,24 @@ class LibraryViewModel @Inject constructor(
         soundManager.play(SoundType.NAVIGATE)
     }
 
-    fun handleItemTap(index: Int, onGameSelect: (Long) -> Unit) {
+    /**
+     * [detailsOnTap] collapses the select-then-confirm pair into one tap. The two-step exists so a
+     * gamepad user can move a focus ring without committing; a finger has already pointed at the
+     * thing it means, so the first tap is the commitment.
+     */
+    fun handleItemTap(index: Int, onGameSelect: (Long) -> Unit, detailsOnTap: Boolean = false) {
         val state = _uiState.value
         if (index < 0 || index >= state.games.size) return
 
-        if (!state.hasSelectedGame || index != state.focusedIndex) {
+        if (!detailsOnTap && (!state.hasSelectedGame || index != state.focusedIndex)) {
             resetStickyColumn()
             _uiState.update { it.copy(focusedIndex = index, hasSelectedGame = true, isTouchMode = true) }
             soundManager.play(SoundType.NAVIGATE)
             return
+        }
+        if (detailsOnTap && index != state.focusedIndex) {
+            resetStickyColumn()
+            _uiState.update { it.copy(focusedIndex = index, hasSelectedGame = true, isTouchMode = true) }
         }
 
         val game = state.games[index]

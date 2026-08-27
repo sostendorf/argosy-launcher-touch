@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.icons.InputIcons
+import com.nendo.argosy.ui.input.LocalTouchUi
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.util.clickableNoFocus
 
@@ -53,24 +54,35 @@ fun SectionBreadcrumb(
     val currentIdx = currentIndex.coerceAtLeast(0)
     val navIconTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
 
+    /**
+     * The bumper arrows are the only way to move this row with a controller, which is why the list
+     * itself does not scroll: two ways to move it would fight each other for the scroll position. A
+     * touch user has the opposite pair - the arrows name buttons the device does not have, and the
+     * finger is the scroll - so the arrows come off and the row scrolls instead. Labels are tappable
+     * either way, so selection is unchanged.
+     */
+    val touchUi = LocalTouchUi.current
+
     Row(modifier = modifier) {
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
-            Row(
-                modifier = Modifier
-                    .clickableNoFocus(onClick = onPrevious)
-                    .padding(Dimens.spacingXs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = InputIcons.BumperLeft,
-                    contentDescription = "Previous section",
-                    tint = navIconTint,
-                    modifier = Modifier.size(Dimens.iconSm)
-                )
+            if (!touchUi) {
+                Row(
+                    modifier = Modifier
+                        .clickableNoFocus(onClick = onPrevious)
+                        .padding(Dimens.spacingXs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = InputIcons.BumperLeft,
+                        contentDescription = "Previous section",
+                        tint = navIconTint,
+                        modifier = Modifier.size(Dimens.iconSm)
+                    )
+                }
             }
 
             val virtualMultiplier = 10000
@@ -160,7 +172,7 @@ fun SectionBreadcrumb(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
                     contentPadding = PaddingValues(horizontal = 0.dp),
-                    userScrollEnabled = false
+                    userScrollEnabled = touchUi
                 ) {
                     items(virtualSize) { virtualIndex ->
                         val realIndex = virtualIndex.mod(labels.size)
@@ -186,18 +198,20 @@ fun SectionBreadcrumb(
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .clickableNoFocus(onClick = onNext)
-                    .padding(Dimens.spacingXs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = InputIcons.BumperRight,
-                    contentDescription = "Next section",
-                    tint = navIconTint,
-                    modifier = Modifier.size(Dimens.iconSm)
-                )
+            if (!touchUi) {
+                Row(
+                    modifier = Modifier
+                        .clickableNoFocus(onClick = onNext)
+                        .padding(Dimens.spacingXs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = InputIcons.BumperRight,
+                        contentDescription = "Next section",
+                        tint = navIconTint,
+                        modifier = Modifier.size(Dimens.iconSm)
+                    )
+                }
             }
         }
     }

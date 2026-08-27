@@ -34,6 +34,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import com.nendo.argosy.ui.input.LocalTouchUi
 import com.nendo.argosy.ui.theme.ALauncherColors
 import com.nendo.argosy.ui.theme.generated.ColorTokens
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -103,11 +104,18 @@ fun rememberBatteryState(): State<BatteryState> {
  */
 val LocalArtworkScraping = androidx.compose.runtime.compositionLocalOf { false }
 
+/**
+ * A handheld running Argosy as its launcher has no system clock on screen, which is why this bar
+ * exists. A phone draws its own clock and battery in the system status bar a few pixels above, so
+ * in touch mode this is a second copy of information the user already has, and it is dropped
+ * rather than duplicated.
+ */
 @Composable
 fun SystemStatusBar(
     modifier: Modifier = Modifier,
     contentColor: Color = Color.Unspecified
 ) {
+    if (LocalTouchUi.current) return
     val isScrapingArtwork = LocalArtworkScraping.current
     val effectiveColor = if (contentColor == Color.Unspecified) {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)

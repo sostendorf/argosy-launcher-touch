@@ -129,7 +129,11 @@ import com.nendo.argosy.ui.components.TileEditMode
 import androidx.compose.foundation.layout.ColumnScope
 import com.nendo.argosy.ui.theme.generated.ComponentDefaults
 import com.nendo.argosy.domain.model.HomeFocusPosition
+import com.nendo.argosy.data.preferences.GridDensity
 import com.nendo.argosy.domain.model.HomeLayoutKind
+import com.nendo.argosy.domain.model.HomeScrollAxis
+import com.nendo.argosy.ui.input.LocalTouchUi
+import com.nendo.argosy.ui.util.GridUtils
 import com.nendo.argosy.domain.model.HomeRowAlignment
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import com.nendo.argosy.ui.components.HERO_MIN_CARD_SCALE
@@ -177,8 +181,27 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
-    val isAutoGrid = uiState.layoutKind == HomeLayoutKind.AUTO_GRID
     val isCustomGrid = uiState.layoutKind == HomeLayoutKind.CUSTOM_GRID
+
+    /**
+     * On a phone the hero carousel is the wrong shape: it shows one enlarged cover with its
+     * neighbours running off both edges, which is a layout for a thumbstick, not a thumb. Touch mode
+     * therefore falls back to the auto grid, which is the same vertical gallery of equal covers RomM
+     * shows on mobile. A hand-curated custom grid is left alone - the user placed those tiles
+     * themselves and replacing their page would be overriding a decision, not a default.
+     */
+    val touchUi = LocalTouchUi.current
+    val isAutoGrid = uiState.layoutKind == HomeLayoutKind.AUTO_GRID || (touchUi && !isCustomGrid)
+    val isGridLayout = isAutoGrid || isCustomGrid
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val autoGridConfig = if (touchUi) {
+        uiState.autoGridConfig.copy(
+            scrollAxis = HomeScrollAxis.VERTICAL,
+            laneCount = GridUtils.getGameGridColumns(GridDensity.NORMAL, screenWidthDp)
+        )
+    } else {
+        uiState.autoGridConfig
+    }
     val scope = rememberCoroutineScope()
     var isProgrammaticScroll by remember { mutableStateOf(false) }
     var skipNextProgrammaticScroll by remember { mutableStateOf(false) }
@@ -438,7 +461,7 @@ fun HomeScreen(
     LaunchedEffect(uiState.focusedGameIndex, uiState.focusedGame?.youtubeVideoId, uiState.videoWallpaperEnabled) {
         viewModel.deactivateVideoPreview()
         if (!uiState.videoWallpaperEnabled) return@LaunchedEffect
-        if (uiState.layoutKind != HomeLayoutKind.CAROUSEL) return@LaunchedEffect
+        if (isGridLayout) return@LaunchedEffect
         val game = uiState.focusedGame ?: return@LaunchedEffect
         val videoId = game.youtubeVideoId ?: return@LaunchedEffect
         val shouldSkip = uiState.showGameMenu ||
@@ -520,7 +543,6 @@ fun HomeScreen(
     val overlayBaseColor = if (isDarkTheme) Color.Black else Color.White
 
     val backdropEnabled = LocalSurfaceBackdrop.current.enabled
-    val isGridLayout = uiState.layoutKind != HomeLayoutKind.CAROUSEL
     val showArtLayer = !isGridLayout &&
         (!backdropEnabled || uiState.homeBackgroundMode == HomeBackgroundMode.GAME_ART)
 
@@ -689,9 +711,16 @@ fun HomeScreen(
                 config = uiState.carouselConfig
             )
             val infoAtBottom = uiState.carouselConfig.rowAlignment == HomeRowAlignment.TOP
+            /**
+             * The guide bar is a row of the touch chrome's own column, outside this screen, so its
+             * height has already been taken out of the space the screen was handed. Subtracting it
+             * again reserves a strip for a bar that is not here, and because the content is anchored
+             * to the bottom the reserved strip opens as a gap directly under the header.
+             */
+            val reservedFooterHeight = if (touchUi) 0.dp else Dimens.footerHeight
             val railHeight = when {
                 isAutoGrid || isCustomGrid ->
-                    (maxHeight - headerBlockHeight - Dimens.footerHeight - Dimens.spacingLg)
+                    (maxHeight - headerBlockHeight - reservedFooterHeight - Dimens.spacingLg)
                         .coerceAtLeast(Dimens.spacingXl)
                 infoAtBottom ->
                     (
@@ -717,7 +746,7 @@ fun HomeScreen(
                     isStacked = isPortrait,
                     headerOffset = videoModeHeaderOffset,
                     showSections = !isCustomGrid,
-                    compact = isAutoGrid && !uiState.autoGridConfig.showTitles
+                    compact = isAutoGrid && !autoGridConfig.showTitles
                 )
             }
 
@@ -825,7 +854,7 @@ fun HomeScreen(
                                     repairedCoverPaths = uiState.repairedCoverPaths
                                 ),
                                 focusedIndex = uiState.focusedGameIndex,
-                                config = uiState.autoGridConfig,
+                                config = autoGridConfig,
                                 gridState = gridState,
                                 showPlatformBadge = uiState.currentRow !is HomeRow.Platform &&
                                     uiState.currentRow != HomeRow.Steam && uiState.currentRow != HomeRow.Android,
@@ -839,7 +868,7 @@ fun HomeScreen(
                                 onCoverLoadFailed = viewModel::repairCoverImage,
                                 onCoverLoaded = viewModel::extractGradientForGame,
                                 onPosterLoaded = viewModel::extractGradientForMedia,
-                                onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
+                                onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect, detailsOnTap = touchUi) },
                                 onItemLongPress = viewModel::handleItemLongPress,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -870,7 +899,7 @@ fun HomeScreen(
                                 onCoverLoadFailed = viewModel::repairCoverImage,
                                 onCoverLoaded = viewModel::extractGradientForGame,
                                 onPosterLoaded = viewModel::extractGradientForMedia,
-                                onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
+                                onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect, detailsOnTap = touchUi) },
                                 onItemLongPress = viewModel::handleItemLongPress,
                                 modifier = Modifier
                                     .align(Alignment.BottomStart)
@@ -1399,8 +1428,14 @@ private fun HomeHeader(
     showSections: Boolean = true,
     compact: Boolean = false
 ) {
+    /**
+     * The generous vertical edge is there to keep the header clear of a handheld's bezel and grips.
+     * A phone has neither, and it has just given up a strip to the app's own top bar, so touch mode
+     * takes the tighter spacing whether or not the caller asked for compact.
+     */
+    val touchUi = LocalTouchUi.current
     val edge = if (compact) Dimens.spacingMd else Dimens.spacingLg
-    val verticalEdge = if (compact) Dimens.spacingXs else Dimens.spacingLg
+    val verticalEdge = if (compact || touchUi) Dimens.spacingXs else Dimens.spacingLg
     if (!showSections) {
         Row(
             modifier = Modifier
@@ -1423,11 +1458,13 @@ private fun HomeHeader(
                 .offset(y = headerOffset),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                SystemStatusBar()
+            if (!touchUi) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    SystemStatusBar()
+                }
             }
             PlatformBreadcrumb(
                 uiState = uiState,
