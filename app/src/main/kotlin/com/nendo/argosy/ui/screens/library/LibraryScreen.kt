@@ -138,6 +138,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -159,6 +160,13 @@ fun LibraryScreen(
     val touchUi = LocalTouchUi.current
     LaunchedEffect(touchUi) { viewModel.updateTouchUi(touchUi) }
     var platformMenuOpen by remember { mutableStateOf(false) }
+
+    /**
+     * The controller header is a fixed band, so the grid can reserve a constant for it. The touch
+     * header wraps its content, so the constant would be a guess - and a wrong guess shows as a gap
+     * between the header and the first row of covers. Measuring it is the only way the two agree.
+     */
+    var measuredHeaderHeight by remember { mutableStateOf(0.dp) }
     val initialGridIndex = remember { viewModel.gameIndexToGridIndex(uiState.focusedIndex) }
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = initialGridIndex)
     val platformGridState = rememberLazyGridState()
@@ -414,7 +422,11 @@ fun LibraryScreen(
                                     contentPadding = PaddingValues(
                                         start = gridSpacing,
                                         end = gridSpacing + sidebarWidth,
-                                        top = Dimens.headerHeightLg,
+                                        top = if (touchUi && measuredHeaderHeight > 0.dp) {
+                                            measuredHeaderHeight + gridSpacing
+                                        } else {
+                                            Dimens.headerHeightLg
+                                        },
                                         bottom = cardHeight + gridSpacing
                                     ),
                                     horizontalArrangement = Arrangement.spacedBy(gridSpacing),
@@ -476,7 +488,14 @@ fun LibraryScreen(
                 }
             }
 
-            Box(modifier = Modifier.align(Alignment.TopCenter)) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .onSizeChanged { size ->
+                        val measured = with(density) { size.height.toDp() }
+                        if (measured != measuredHeaderHeight) measuredHeaderHeight = measured
+                    }
+            ) {
                 if (uiState.isPlatformGrid) {
                     LibraryPlatformGridHeader(
                         platformCount = uiState.platformCellCount,
@@ -531,7 +550,12 @@ fun LibraryScreen(
                     platformMenuOpen = false
                     viewModel.selectPlatform(index)
                 },
-                onDismiss = { platformMenuOpen = false }
+                onDismiss = { platformMenuOpen = false },
+                topOffset = if (measuredHeaderHeight > 0.dp) {
+                    measuredHeaderHeight
+                } else {
+                    Dimens.headerHeightLg
+                }
             )
         }
 
@@ -813,6 +837,87 @@ fun LibraryScreen(
     }
 }
 
+/**
+ * The touch library header, built to the shape the home screen already uses: one centred line
+ * naming what you are looking at, the focused title directly above the grid, and no fixed height.
+ *
+ * The controller header is a fixed [Dimens.headerHeightLg] band with the platform stepper indented
+ * left and the count pushed to the right margin. That reads correctly when a cursor is travelling
+ * between them, and badly on a phone - the two halves sit at opposite edges with the focused title
+ * stranded underneath, and the fixed band leaves dead space above the games whatever it contains.
+ * Wrapping the content means the grid starts where the header actually ends.
+ */
+@Composable
+private fun TouchLibraryHeader(
+    platformName: String,
+    gameCount: Int,
+    focusedGameTitle: String?,
+    onPlatformNameClick: () -> Unit
+) {
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    0.0f to surfaceColor,
+                    0.75f to surfaceColor.copy(alpha = 0.85f),
+                    1.0f to Color.Transparent
+                )
+            )
+            .padding(
+                start = Dimens.spacingLg,
+                end = Dimens.spacingLg,
+                top = Dimens.spacingXs,
+                bottom = Dimens.spacingSm
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(Dimens.radiusPill))
+                .clickableNoFocus(onPlatformNameClick)
+                .padding(horizontal = Dimens.spacingSm, vertical = Dimens.spacingXs),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = platformName,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            Icon(
+                imageVector = Icons.Rounded.ArrowDropDown,
+                contentDescription = "Choose platform",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(Dimens.iconSm)
+            )
+            Text(
+                text = "$gameCount",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.padding(start = Dimens.spacingSm)
+            )
+        }
+
+        if (focusedGameTitle != null) {
+            Text(
+                text = focusedGameTitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
 @Composable
 private fun LibraryHeader(
     platformName: String,
@@ -834,6 +939,16 @@ private fun LibraryHeader(
         platformName.take(maxNameLength - 1) + "…"
     } else {
         platformName
+    }
+
+    if (onPlatformNameClick != null) {
+        TouchLibraryHeader(
+            platformName = displayName,
+            gameCount = gameCount,
+            focusedGameTitle = focusedGameTitle,
+            onPlatformNameClick = onPlatformNameClick
+        )
+        return
     }
 
     /**
@@ -1009,6 +1124,7 @@ private fun PlatformDropdown(
     currentIndex: Int,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
+    topOffset: Dp,
     modifier: Modifier = Modifier
 ) {
     val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
@@ -1021,7 +1137,7 @@ private fun PlatformDropdown(
     ) {
         Column(
             modifier = Modifier
-                .padding(top = Dimens.headerHeightLg, start = Dimens.spacingLg, end = Dimens.spacingLg)
+                .padding(top = topOffset, start = Dimens.spacingLg, end = Dimens.spacingLg)
                 .fillMaxWidth()
                 .heightIn(max = Dimens.modalWidthLg)
                 .clip(RoundedCornerShape(Dimens.radiusPanel))
