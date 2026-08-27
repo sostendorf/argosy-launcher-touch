@@ -1006,6 +1006,23 @@ class LibraryViewModel @Inject constructor(
         return ""
     }
 
+    /**
+     * Tracks the alphabet index against what is on screen rather than where the cursor is.
+     *
+     * The section label is otherwise derived from the focused index, which is the right answer for
+     * a gamepad - the cursor is the user's position. A finger scrolls without moving focus, so on
+     * touch that leaves the index stuck on whichever letter the cursor was parked at while the list
+     * has travelled somewhere else entirely.
+     */
+    fun updateVisibleSection(firstVisibleGridIndex: Int) {
+        val state = _uiState.value
+        if (firstVisibleGridIndex !in state.gridItems.indices) return
+        val label = findSectionLabelForGridItem(state.gridItems, firstVisibleGridIndex)
+        if (label.isNotEmpty() && label != state.currentSectionLabel) {
+            _uiState.update { it.copy(currentSectionLabel = label) }
+        }
+    }
+
     private var sectionOverlayJob: Job? = null
 
     private fun showSectionOverlay(label: String) {

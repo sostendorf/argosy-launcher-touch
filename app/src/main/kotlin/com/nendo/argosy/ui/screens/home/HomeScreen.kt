@@ -696,10 +696,12 @@ fun HomeScreen(
                              * Sideways is the section axis under touch. The grid scrolls
                              * vertically, so a horizontal swipe has nothing else to mean, and it
                              * saves reaching the strip at the top of the screen to change section.
-                             * Dragging right moves right along that strip.
+                             *
+                             * The content follows the finger, as a page would: dragging left pulls
+                             * the next section in from the right.
                              */
-                            currentTouchUi && totalDragX > swipeThreshold -> viewModel.nextRow()
-                            currentTouchUi && totalDragX < -swipeThreshold -> viewModel.previousRow()
+                            currentTouchUi && totalDragX < -swipeThreshold -> viewModel.nextRow()
+                            currentTouchUi && totalDragX > swipeThreshold -> viewModel.previousRow()
                             currentTouchUi -> Unit
                             startX < edgeThresholdPx && totalDragX > swipeThreshold ->
                                 currentOnDrawerToggle()

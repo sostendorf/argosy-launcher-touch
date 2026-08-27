@@ -72,6 +72,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.zIndex
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -162,6 +163,13 @@ fun LibraryScreen(
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = initialGridIndex)
     val platformGridState = rememberLazyGridState()
     var isProgrammaticScroll by remember { mutableStateOf(false) }
+
+    LaunchedEffect(touchUi, gridState) {
+        if (!touchUi) return@LaunchedEffect
+        snapshotFlow { gridState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { viewModel.updateVisibleSection(it) }
+    }
 
     LaunchedEffect(initialPlatformId) {
         if (initialPlatformId != null) {
@@ -816,9 +824,10 @@ private fun LibraryHeader(
     onPlatformNameClick: (() -> Unit)? = null
 ) {
     val aspectRatioClass = com.nendo.argosy.ui.theme.LocalUiScale.current.aspectRatioClass
-    val maxNameLength = when (aspectRatioClass) {
-        com.nendo.argosy.ui.theme.AspectRatioClass.ULTRA_TALL -> 12
-        com.nendo.argosy.ui.theme.AspectRatioClass.TALL -> 16
+    val maxNameLength = when {
+        onPlatformNameClick != null -> null
+        aspectRatioClass == com.nendo.argosy.ui.theme.AspectRatioClass.ULTRA_TALL -> 12
+        aspectRatioClass == com.nendo.argosy.ui.theme.AspectRatioClass.TALL -> 16
         else -> null
     }
     val displayName = if (maxNameLength != null && platformName.length > maxNameLength) {
@@ -827,7 +836,14 @@ private fun LibraryHeader(
         platformName
     }
 
-    val showLibraryLabel = aspectRatioClass != com.nendo.argosy.ui.theme.AspectRatioClass.ULTRA_TALL
+    /**
+     * The word LIBRARY is dropped under touch. The app bar directly above already names the section,
+     * so it is a second copy of the same word competing for a phone's width - and on the Local tab it
+     * is the wrong word entirely. Removing it also hands the platform picker the weight it needs to
+     * ellipsize instead of forcing the game count to wrap a character at a time.
+     */
+    val showLibraryLabel = aspectRatioClass != com.nendo.argosy.ui.theme.AspectRatioClass.ULTRA_TALL &&
+        !LocalTouchUi.current
 
     val surfaceColor = MaterialTheme.colorScheme.surface
     Box(
@@ -903,7 +919,14 @@ private fun LibraryHeader(
                         Text(
                             text = displayName,
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = if (onPlatformNameClick != null) {
+                                Modifier.weight(1f, fill = false)
+                            } else {
+                                Modifier
+                            }
                         )
                         if (onPlatformNameClick != null) {
                             Icon(
@@ -937,7 +960,10 @@ private fun LibraryHeader(
                 Text(
                     text = "$gameCount games",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.padding(start = Dimens.spacingSm)
                 )
             }
 
