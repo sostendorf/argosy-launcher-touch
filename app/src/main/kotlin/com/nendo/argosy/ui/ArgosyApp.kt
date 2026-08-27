@@ -1071,11 +1071,23 @@ fun ArgosyApp(
      * tapped from a pushed screen - game details above library, say - depending on that Home entry
      * still being there to pop back to. Popping to the destination itself does not.
      */
+    /**
+     * A bottom-bar tap returns to a destination already on the stack instead of stacking a second
+     * copy, and tapping the tab you are already on resets it to its own root.
+     *
+     * That reset is what makes Library reachable from inside a platform: the platform list and the
+     * games inside one are the same destination as far as the graph is concerned, so without it the
+     * tap correctly decides there is nowhere to go. Replacing the entry rebuilds the screen at its
+     * starting view, which is the platform grid.
+     */
     val navigateFromTouchBar: (String) -> Unit = { route ->
-        if (route.substringBefore("?") != currentRoute?.substringBefore("?")) {
-            if (!navController.popBackStack(route, false)) {
-                navigateFromDrawer(route)
+        if (route.substringBefore("?") == currentRoute?.substringBefore("?")) {
+            navController.navigate(route) {
+                popUpTo(route) { inclusive = true }
+                launchSingleTop = true
             }
+        } else if (!navController.popBackStack(route, false)) {
+            navigateFromDrawer(route)
         }
     }
 

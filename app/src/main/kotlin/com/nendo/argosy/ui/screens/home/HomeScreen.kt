@@ -197,7 +197,7 @@ fun HomeScreen(
     val autoGridConfig = if (touchUi) {
         uiState.autoGridConfig.copy(
             scrollAxis = HomeScrollAxis.VERTICAL,
-            laneCount = GridUtils.getGameGridColumns(GridDensity.NORMAL, screenWidthDp)
+            laneCount = GridUtils.getTouchGameGridColumns(GridDensity.NORMAL, screenWidthDp)
         )
     } else {
         uiState.autoGridConfig
@@ -210,6 +210,13 @@ fun HomeScreen(
     val swipeThreshold = with(LocalDensity.current) { 50.dp.toPx() }
 
     val currentOnDrawerToggle by rememberUpdatedState(onDrawerToggle)
+
+    /**
+     * Read through a holder because the gesture detector below is keyed on Unit: it captures its
+     * lambdas once and would otherwise keep answering with whatever this was when the screen first
+     * composed, which is exactly the moment a controller can still be plugged in or pulled out.
+     */
+    val currentTouchUi by rememberUpdatedState(LocalTouchUi.current)
 
     LaunchedEffect(Unit) {
         snapshotFlow { Triple(uiState.focusedGameIndex, uiState.currentRow, uiState.currentItems.size) }
@@ -667,6 +674,7 @@ fun HomeScreen(
                     onDragStart = { totalDragY = 0f },
                     onDragEnd = {
                         when {
+                            currentTouchUi -> Unit
                             totalDragY < -swipeThreshold -> viewModel.nextRow()
                             totalDragY > swipeThreshold -> viewModel.previousRow()
                         }
@@ -683,8 +691,18 @@ fun HomeScreen(
                         startX = offset.x
                     },
                     onDragEnd = {
-                        if (startX < edgeThresholdPx && totalDragX > swipeThreshold) {
-                            currentOnDrawerToggle()
+                        when {
+                            /**
+                             * Sideways is the section axis under touch. The grid scrolls
+                             * vertically, so a horizontal swipe has nothing else to mean, and it
+                             * saves reaching the strip at the top of the screen to change section.
+                             * Dragging right moves right along that strip.
+                             */
+                            currentTouchUi && totalDragX > swipeThreshold -> viewModel.nextRow()
+                            currentTouchUi && totalDragX < -swipeThreshold -> viewModel.previousRow()
+                            currentTouchUi -> Unit
+                            startX < edgeThresholdPx && totalDragX > swipeThreshold ->
+                                currentOnDrawerToggle()
                         }
                     },
                     onHorizontalDrag = { _, dragAmount -> totalDragX += dragAmount }

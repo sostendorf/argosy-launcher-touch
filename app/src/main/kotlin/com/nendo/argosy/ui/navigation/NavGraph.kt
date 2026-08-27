@@ -24,6 +24,7 @@ import com.nendo.argosy.ui.screens.gamedetail.GameDetailScreen
 import com.nendo.argosy.ui.screens.home.HomeScreen
 import com.nendo.argosy.ui.screens.quaypass.QuayPassCheckInScreen
 import com.nendo.argosy.ui.screens.library.LibraryScreen
+import com.nendo.argosy.ui.screens.library.SourceFilter
 import com.nendo.argosy.ui.screens.media.MediaDetailScreen
 import com.nendo.argosy.ui.screens.media.MediaLibraryScreen
 import com.nendo.argosy.ui.screens.doodle.DoodleScreen
@@ -114,6 +115,22 @@ fun NavGraph(
                 isDefaultView = false,
                 initialPlatformId = platformId,
                 initialSource = source,
+                onGameSelect = { gameId ->
+                    navController.navigate(Screen.GameDetail.createRoute(gameId))
+                },
+                onMediaLibrarySelect = { libraryId ->
+                    navController.navigate(Screen.MediaLibrary.createRoute(libraryId))
+                },
+                onNavigateToDefault = navigateToDefault,
+                onDrawerToggle = onDrawerToggle
+            )
+        }
+
+        composable(Screen.Local.route) {
+            LibraryScreen(
+                isDefaultView = false,
+                initialPlatformId = null,
+                initialSource = SourceFilter.DOWNLOADED.name,
                 onGameSelect = { gameId ->
                     navController.navigate(Screen.GameDetail.createRoute(gameId))
                 },

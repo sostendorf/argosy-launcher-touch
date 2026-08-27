@@ -22,6 +22,14 @@ sealed class Screen(val route: String) {
         fun createRoute(type: String, category: String) = "virtual/$type/${java.net.URLEncoder.encode(category, "UTF-8")}"
     }
     data object Downloads : Screen("downloads")
+
+    /**
+     * The games whose files are on this device. Its own route rather than the library's source
+     * argument, so that it is a destination the drawer and the bottom bar can highlight and return
+     * to on its own terms; sharing the library's route would make the two indistinguishable to
+     * anything that identifies a destination by path.
+     */
+    data object Local : Screen("local")
     data object SaveSync : Screen("save_sync")
     data object Apps : Screen("apps")
     data object Settings : Screen("settings?section={section}&action={action}&platformId={platformId}") {
@@ -72,6 +80,7 @@ sealed class Screen(val route: String) {
         const val ROUTE_GAME_DETAIL = "game"
         const val ROUTE_SETTINGS = "settings"
         const val ROUTE_DOWNLOADS = "downloads"
+        const val ROUTE_LOCAL = "local"
         const val ROUTE_SAVE_SYNC = "save_sync"
         const val ROUTE_APPS = "apps"
         const val ROUTE_MEDIA_LIBRARY = "media_library"

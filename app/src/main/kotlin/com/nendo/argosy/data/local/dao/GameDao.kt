@@ -188,6 +188,39 @@ interface GameDao {
     """)
     fun observeFavoritesList(ownerUserId: Long?): Flow<List<GameListItem>>
 
+    /**
+     * Games whose file is on this device.
+     *
+     * `localPath IS NOT NULL` is the same predicate the rest of the DAO already treats as
+     * "downloaded" - see getDownloadedBySources and countDownloadedByPlatform - rather than a second
+     * definition that could disagree with the counts shown beside it. It is deliberately not the
+     * playable predicate: that one asks whether a game could be launched, which includes a synced
+     * RomM entry that has never been fetched.
+     */
+    @Query("""
+        SELECT id, platformId, platformSlug, title, sortTitle, localPath, source, coverPath, isFavorite,
+               EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
+               isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
+               lastPlayed, genre, gameModes, rating, userRating, userDifficulty, releaseYear, addedAt
+        FROM games
+        WHERE localPath IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
+        ORDER BY sortTitle ASC
+    """)
+    fun observeDownloadedList(ownerUserId: Long?): Flow<List<GameListItem>>
+
+    @Query("""
+        SELECT id, platformId, platformSlug, title, sortTitle, localPath, source, coverPath, isFavorite,
+               EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
+               isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
+               lastPlayed, genre, gameModes, rating, userRating, userDifficulty, releaseYear, addedAt
+        FROM games
+        WHERE platformId = :platformId AND localPath IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
+        ORDER BY sortTitle ASC
+    """)
+    fun observeDownloadedByPlatformList(platformId: Long, ownerUserId: Long?): Flow<List<GameListItem>>
+
     @Query("""
         SELECT id, platformId, platformSlug, title, sortTitle, localPath, source, coverPath, isFavorite,
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,

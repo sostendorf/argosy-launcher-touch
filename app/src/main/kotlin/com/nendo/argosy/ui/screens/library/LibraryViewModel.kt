@@ -101,6 +101,7 @@ enum class SourceFilter(val label: String) {
     ALL("All Games"),
     PLAYABLE("Playable"),
     FAVORITES("Favorites"),
+    DOWNLOADED("Local"),
     HIDDEN("Hidden")
 }
 
@@ -244,6 +245,7 @@ data class LibraryUiState(
     val isTouchMode: Boolean = false,
     val hasSelectedGame: Boolean = false,
     val screenWidthDp: Int = 0,
+    val isTouchUi: Boolean = false,
     val recentSearches: List<String> = emptyList(),
     val repairedCoverPaths: Map<Long, String> = emptyMap(),
     val showAddToCollectionModal: Boolean = false,
@@ -271,7 +273,11 @@ data class LibraryUiState(
      * shelf is in front of you, and app-width columns spent that on air.
      */
     val platformGridColumns: Int
-        get() = GridUtils.getGameGridColumns(gridDensity, screenWidthDp)
+        get() = if (isTouchUi) {
+            GridUtils.getTouchGameGridColumns(gridDensity, screenWidthDp)
+        } else {
+            GridUtils.getGameGridColumns(gridDensity, screenWidthDp)
+        }
 
     /**
      * Nothing to land on: no platform row, no media library, and nothing in the library as a whole.
@@ -290,7 +296,11 @@ data class LibraryUiState(
         get() = platformCells.count { it.isMedia }
 
     val columnsCount: Int
-        get() = GridUtils.getGameGridColumns(gridDensity, screenWidthDp)
+        get() = if (isTouchUi) {
+            GridUtils.getTouchGameGridColumns(gridDensity, screenWidthDp)
+        } else {
+            GridUtils.getGameGridColumns(gridDensity, screenWidthDp)
+        }
 
     val gridSpacingDp: Int
         get() = GridUtils.getGridSpacingDp(gridDensity)
@@ -886,6 +896,7 @@ class LibraryViewModel @Inject constructor(
                 when (filters.source) {
                     SourceFilter.PLAYABLE -> gameRepository.observePlayableByPlatformList(platformId)
                     SourceFilter.FAVORITES -> gameRepository.observeFavoritesByPlatformList(platformId)
+                    SourceFilter.DOWNLOADED -> gameRepository.observeDownloadedByPlatformList(platformId)
                     else -> gameRepository.observeByPlatformList(platformId)
                 }
             } else {
@@ -893,6 +904,7 @@ class LibraryViewModel @Inject constructor(
                     SourceFilter.ALL -> gameRepository.observeAllList()
                     SourceFilter.PLAYABLE -> gameRepository.observePlayableList()
                     SourceFilter.FAVORITES -> gameRepository.observeFavoritesList()
+                    SourceFilter.DOWNLOADED -> gameRepository.observeDownloadedList()
                     SourceFilter.HIDDEN -> gameRepository.observeHiddenList()
                 }
             }
@@ -1112,6 +1124,21 @@ class LibraryViewModel @Inject constructor(
         Log.d(TAG, "previousPlatform: changing to index $prevIndex")
         resetStickyColumn()
         _uiState.update { it.copy(currentPlatformIndex = prevIndex, focusedIndex = 0) }
+        loadGames()
+    }
+
+    /**
+     * Jumps straight to a platform by index, with -1 meaning every platform at once - the same
+     * position the steppers wrap through, so a picked platform and a stepped one land in identical
+     * state. Out-of-range indices are ignored rather than clamped: a stale index names a platform
+     * that is no longer there, and the nearest one is not what was asked for.
+     */
+    fun selectPlatform(index: Int) {
+        val state = _uiState.value
+        if (index < -1 || index >= state.platforms.size) return
+        if (index == state.currentPlatformIndex) return
+        resetStickyColumn()
+        _uiState.update { it.copy(currentPlatformIndex = index, focusedIndex = 0) }
         loadGames()
     }
 
@@ -1769,6 +1796,17 @@ class LibraryViewModel @Inject constructor(
     fun updateScreenWidth(widthDp: Int) {
         if (_uiState.value.screenWidthDp != widthDp) {
             _uiState.update { it.copy(screenWidthDp = widthDp) }
+        }
+    }
+
+    /**
+     * The grid is sized by a different rule under touch, so the state has to know which one applies.
+     * It arrives from the UI for the same reason the width does: both are properties of the surface
+     * this is being drawn on, which is not something a ViewModel can see for itself.
+     */
+    fun updateTouchUi(touchUi: Boolean) {
+        if (_uiState.value.isTouchUi != touchUi) {
+            _uiState.update { it.copy(isTouchUi = touchUi) }
         }
     }
 

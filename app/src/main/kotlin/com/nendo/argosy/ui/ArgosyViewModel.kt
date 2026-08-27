@@ -551,8 +551,9 @@ class ArgosyViewModel @Inject constructor(
         DrawerItem(Screen.QuayPass.route, "Check-In"),
         DrawerItem(Screen.Collections.route, "Collections"),
         DrawerItem(Screen.Library.route, "Library"),
+        DrawerItem(Screen.Local.route, "Local"),
         DrawerItem(Screen.MediaLibrary.route, "Media"),
-        DrawerItem(Screen.Downloads.route, "Downloads"),
+        DrawerItem(Screen.Downloads.route, "Downloading"),
         DrawerItem(Screen.SaveSync.route, "Save Sync"),
         DrawerItem(Screen.Apps.route, "Apps"),
         DrawerItem(Screen.Settings.route, "Settings")

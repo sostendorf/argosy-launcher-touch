@@ -1,6 +1,7 @@
 package com.nendo.argosy.ui.util
 
 import com.nendo.argosy.data.preferences.GridDensity
+import kotlin.math.pow
 
 object GridUtils {
 
@@ -31,6 +32,22 @@ object GridUtils {
     private const val MIN_APP_CELL_SPACIOUS_DP = 132
 
     private const val MIN_COLUMNS = 2
+
+    /**
+     * The width the minimum cover sizes above are stated at - a typical phone in portrait.
+     */
+    private const val TOUCH_REFERENCE_WIDTH_DP = 400f
+
+    /**
+     * How much of a screen's extra width goes into bigger covers rather than more of them.
+     *
+     * A fixed cover size would put every extra pixel into extra columns, and a fixed column count
+     * would put it all into size; neither is what a larger screen should do. Raising the width ratio
+     * to a fractional power splits it: from a 411dp phone to a 1280dp tablet the covers grow from
+     * about 137dp to 183dp AND the columns go from three to seven. Below the reference width the
+     * ratio is clamped, so a small phone keeps the stated minimum rather than shrinking further.
+     */
+    private const val TOUCH_GROWTH_EXPONENT = 0.35f
 
     fun getGameGridColumns(density: GridDensity, screenWidthDp: Int): Int {
         val baseColumns = when (density) {
@@ -66,6 +83,30 @@ object GridUtils {
             screenWidthDp,
             minCellDp
         )
+    }
+
+    /**
+     * Columns for the touch layouts, derived from a cover size that grows with the screen rather
+     * than from a fixed count.
+     *
+     * The controller layouts above start from a column count because a d-pad moves between cells and
+     * the count is what the user is really navigating. Touch has no such constraint: a finger cares
+     * how big the art is, and how much of it fits follows from that. So this inverts the calculation
+     * - pick the cover size for this screen, then fit as many as the width allows.
+     *
+     * Scoped to touch deliberately. Applying it everywhere would redraw the handhelds and TVs Argosy
+     * was built for, which is not a change to make as a side effect of a phone layout.
+     */
+    fun getTouchGameGridColumns(density: GridDensity, screenWidthDp: Int): Int {
+        if (screenWidthDp <= 0) return getGameGridColumns(density, screenWidthDp)
+        val minCellDp = when (density) {
+            GridDensity.COMPACT -> MIN_GAME_CELL_COMPACT_DP
+            GridDensity.NORMAL -> MIN_GAME_CELL_NORMAL_DP
+            GridDensity.SPACIOUS -> MIN_GAME_CELL_SPACIOUS_DP
+        }
+        val widthRatio = (screenWidthDp / TOUCH_REFERENCE_WIDTH_DP).coerceAtLeast(1f)
+        val targetCellDp = minCellDp * widthRatio.pow(TOUCH_GROWTH_EXPONENT)
+        return (screenWidthDp / targetCellDp).toInt().coerceAtLeast(MIN_COLUMNS)
     }
 
     /**

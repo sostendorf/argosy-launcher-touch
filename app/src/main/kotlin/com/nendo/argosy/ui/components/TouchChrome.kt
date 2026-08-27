@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
@@ -56,10 +57,11 @@ data class TouchDestination(
 private val BOTTOM_BAR_PRIORITY = listOf(
     Screen.Home.route,
     Screen.Library.route,
+    Screen.Local.route,
     Screen.Collections.route,
-    Screen.Downloads.route,
     Screen.Settings.route,
     Screen.MediaLibrary.route,
+    Screen.Downloads.route,
     Screen.SaveSync.route,
     Screen.Apps.route,
     Screen.Social.route,
@@ -73,6 +75,7 @@ private fun iconForRoute(route: String): ImageVector = when (route.substringBefo
     Screen.ROUTE_LIBRARY -> Icons.Rounded.VideogameAsset
     Screen.ROUTE_COLLECTIONS -> Icons.Rounded.Bookmarks
     Screen.ROUTE_DOWNLOADS -> Icons.Rounded.Download
+    Screen.ROUTE_LOCAL -> Icons.Rounded.PhoneAndroid
     Screen.ROUTE_SETTINGS -> Icons.Rounded.Settings
     Screen.ROUTE_MEDIA_LIBRARY -> Icons.Rounded.Movie
     Screen.ROUTE_SAVE_SYNC -> Icons.Rounded.CloudSync

@@ -871,6 +871,10 @@ class GameRepository @Inject constructor(
         emitAll(gameDao.observeFavoritesByPlatformList(platformId, hiddenOwnerId()))
     }
 
+    fun observeDownloadedByPlatformList(platformId: Long): Flow<List<GameListItem>> = flow {
+        emitAll(gameDao.observeDownloadedByPlatformList(platformId, hiddenOwnerId()))
+    }
+
     fun observeByPlatformList(platformId: Long): Flow<List<GameListItem>> = flow {
         emitAll(gameDao.observeByPlatformList(platformId, hiddenOwnerId()))
     }
@@ -885,6 +889,10 @@ class GameRepository @Inject constructor(
 
     fun observeFavoritesList(): Flow<List<GameListItem>> = flow {
         emitAll(gameDao.observeFavoritesList(hiddenOwnerId()))
+    }
+
+    fun observeDownloadedList(): Flow<List<GameListItem>> = flow {
+        emitAll(gameDao.observeDownloadedList(hiddenOwnerId()))
     }
 
     suspend fun getNewlyAddedPlayable(

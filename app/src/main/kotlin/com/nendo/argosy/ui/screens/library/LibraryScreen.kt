@@ -40,6 +40,7 @@ import com.nendo.argosy.ui.screens.library.components.LibraryPlatformGridHeaderH
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
@@ -102,6 +103,7 @@ import com.nendo.argosy.ui.components.MemcardPickerModal
 import com.nendo.argosy.ui.components.SyncOverlay
 import com.nendo.argosy.ui.screens.collections.dialogs.CreateCollectionDialog
 import com.nendo.argosy.ui.icons.InputIcons
+import com.nendo.argosy.ui.screens.home.HomePlatformUi
 import com.nendo.argosy.ui.input.DiscPickerInputHandler
 import com.nendo.argosy.ui.input.LocalTouchUi
 import com.nendo.argosy.ui.input.MemcardPickerInputHandler
@@ -154,6 +156,8 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val touchUi = LocalTouchUi.current
+    LaunchedEffect(touchUi) { viewModel.updateTouchUi(touchUi) }
+    var platformMenuOpen by remember { mutableStateOf(false) }
     val initialGridIndex = remember { viewModel.gameIndexToGridIndex(uiState.focusedIndex) }
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = initialGridIndex)
     val platformGridState = rememberLazyGridState()
@@ -296,6 +300,7 @@ fun LibraryScreen(
     val edgeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
     val currentOnDrawerToggle by rememberUpdatedState(onDrawerToggle)
     val currentIsPlatformGrid by rememberUpdatedState(uiState.isPlatformGrid)
+    val currentTouchUi by rememberUpdatedState(touchUi)
 
     val swipeGestureModifier = Modifier.pointerInput(Unit) {
         var totalDragX = 0f
@@ -309,7 +314,8 @@ fun LibraryScreen(
             },
             onDragEnd = {
                 when {
-                    startX < edgeThreshold && totalDragX > swipeThreshold -> currentOnDrawerToggle()
+                    !currentTouchUi && startX < edgeThreshold && totalDragX > swipeThreshold ->
+                        currentOnDrawerToggle()
                     currentIsPlatformGrid -> {}
                     totalDragX > swipeThreshold && abs(totalDragX) > abs(totalDragY) -> viewModel.previousPlatform()
                     totalDragX < -swipeThreshold && abs(totalDragX) > abs(totalDragY) -> viewModel.nextPlatform()
@@ -474,7 +480,13 @@ fun LibraryScreen(
                         gameCount = uiState.games.size,
                         focusedGameTitle = uiState.focusedGame?.title,
                         onPreviousPlatform = { viewModel.previousPlatform() },
-                        onNextPlatform = { viewModel.nextPlatform() }
+                        onNextPlatform = { viewModel.nextPlatform() },
+                        showStepper = !touchUi,
+                        onPlatformNameClick = if (touchUi) {
+                            { platformMenuOpen = true }
+                        } else {
+                            null
+                        }
                     )
                 }
             }
@@ -501,6 +513,18 @@ fun LibraryScreen(
                     )
                 }
             }
+        }
+
+        if (platformMenuOpen && !uiState.isPlatformGrid) {
+            PlatformDropdown(
+                platforms = uiState.platforms,
+                currentIndex = uiState.currentPlatformIndex,
+                onSelect = { index ->
+                    platformMenuOpen = false
+                    viewModel.selectPlatform(index)
+                },
+                onDismiss = { platformMenuOpen = false }
+            )
         }
 
         AnimatedVisibility(
@@ -787,7 +811,9 @@ private fun LibraryHeader(
     gameCount: Int,
     focusedGameTitle: String? = null,
     onPreviousPlatform: () -> Unit = {},
-    onNextPlatform: () -> Unit = {}
+    onNextPlatform: () -> Unit = {},
+    showStepper: Boolean = true,
+    onPlatformNameClick: (() -> Unit)? = null
 ) {
     val aspectRatioClass = com.nendo.argosy.ui.theme.LocalUiScale.current.aspectRatioClass
     val maxNameLength = when (aspectRatioClass) {
@@ -842,42 +868,69 @@ private fun LibraryHeader(
                 ) {
                     val navIconTint = MaterialTheme.colorScheme.onSurfaceVariant
 
-                    Row(
-                        modifier = Modifier
-                            .clickableNoFocus(onClick = onPreviousPlatform)
-                            .padding(Dimens.spacingSm),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = InputIcons.BumperLeft,
-                            contentDescription = "Previous platform",
-                            tint = navIconTint,
-                            modifier = Modifier.size(Dimens.iconSm)
-                        )
+                    if (showStepper) {
+                        Row(
+                            modifier = Modifier
+                                .clickableNoFocus(onClick = onPreviousPlatform)
+                                .padding(Dimens.spacingSm),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = InputIcons.BumperLeft,
+                                contentDescription = "Previous platform",
+                                tint = navIconTint,
+                                modifier = Modifier.size(Dimens.iconSm)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(Dimens.spacingXs))
                     }
 
-                    Spacer(modifier = Modifier.width(Dimens.spacingXs))
-
-                    Text(
-                        text = displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Spacer(modifier = Modifier.width(Dimens.spacingXs))
-
                     Row(
-                        modifier = Modifier
-                            .clickableNoFocus(onClick = onNextPlatform)
-                            .padding(Dimens.spacingSm),
+                        modifier = if (onPlatformNameClick != null) {
+                            Modifier
+                                .clip(RoundedCornerShape(Dimens.radiusPill))
+                                .clickableNoFocus(onClick = onPlatformNameClick)
+                                .padding(
+                                    horizontal = Dimens.spacingSm,
+                                    vertical = Dimens.spacingXs
+                                )
+                        } else {
+                            Modifier
+                        },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = InputIcons.BumperRight,
-                            contentDescription = "Next platform",
-                            tint = navIconTint,
-                            modifier = Modifier.size(Dimens.iconSm)
+                        Text(
+                            text = displayName,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
                         )
+                        if (onPlatformNameClick != null) {
+                            Icon(
+                                imageVector = Icons.Rounded.ArrowDropDown,
+                                contentDescription = "Choose platform",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimens.iconSm)
+                            )
+                        }
+                    }
+
+                    if (showStepper) {
+                        Spacer(modifier = Modifier.width(Dimens.spacingXs))
+
+                        Row(
+                            modifier = Modifier
+                                .clickableNoFocus(onClick = onNextPlatform)
+                                .padding(Dimens.spacingSm),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = InputIcons.BumperRight,
+                                contentDescription = "Next platform",
+                                tint = navIconTint,
+                                modifier = Modifier.size(Dimens.iconSm)
+                            )
+                        }
                     }
                 }
 
@@ -914,6 +967,81 @@ private fun LibraryHeader(
             }
         }
     }
+}
+
+/**
+ * The touch platform chooser: the list the bumper steppers walk through, shown all at once.
+ *
+ * Drawn inside the screen's own layout rather than as a Popup. A popup is a second window, and the
+ * app root reclaims key-sink focus a moment after anything else takes it - which would pull the
+ * ground out from under the menu while the user is reading it. Staying in this window sidesteps
+ * focus entirely, which is also what the no-focus-for-selection rule asks for.
+ */
+@Composable
+private fun PlatformDropdown(
+    platforms: List<HomePlatformUi>,
+    currentIndex: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
+    val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f)
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(overlayColor)
+            .clickableNoFocus(onDismiss)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(top = Dimens.headerHeightLg, start = Dimens.spacingLg, end = Dimens.spacingLg)
+                .fillMaxWidth()
+                .heightIn(max = Dimens.modalWidthLg)
+                .clip(RoundedCornerShape(Dimens.radiusPanel))
+                .background(MaterialTheme.colorScheme.surface)
+        ) {
+            LazyColumn {
+                item(key = "all-platforms") {
+                    PlatformDropdownRow(
+                        label = "All Platforms",
+                        selected = currentIndex < 0,
+                        onClick = { onSelect(-1) }
+                    )
+                }
+                itemsIndexed(platforms, key = { _, platform -> platform.id }) { index, platform ->
+                    PlatformDropdownRow(
+                        label = platform.displayName,
+                        selected = index == currentIndex,
+                        onClick = { onSelect(index) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlatformDropdownRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyLarge,
+        color = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        maxLines = 1,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickableNoFocus(onClick)
+            .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingMd)
+    )
 }
 
 /**
