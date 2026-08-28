@@ -423,7 +423,7 @@ fun LibraryScreen(
                                         start = gridSpacing,
                                         end = gridSpacing + sidebarWidth,
                                         top = if (touchUi && measuredHeaderHeight > 0.dp) {
-                                            measuredHeaderHeight + gridSpacing
+                                            measuredHeaderHeight + Dimens.spacingMd
                                         } else {
                                             Dimens.headerHeightLg
                                         },
@@ -854,17 +854,10 @@ private fun TouchLibraryHeader(
     focusedGameTitle: String?,
     onPlatformNameClick: () -> Unit
 ) {
-    val surfaceColor = MaterialTheme.colorScheme.surface
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    0.0f to surfaceColor,
-                    0.75f to surfaceColor.copy(alpha = 0.85f),
-                    1.0f to Color.Transparent
-                )
-            )
+            .background(MaterialTheme.colorScheme.background)
             .padding(
                 start = Dimens.spacingLg,
                 end = Dimens.spacingLg,
@@ -894,25 +887,27 @@ private fun TouchLibraryHeader(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(Dimens.iconSm)
             )
-            Text(
-                text = "$gameCount",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier.padding(start = Dimens.spacingSm)
-            )
         }
+
+        Text(
+            text = "$gameCount games",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            softWrap = false
+        )
 
         if (focusedGameTitle != null) {
             Text(
                 text = focusedGameTitle,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = Dimens.spacingSm)
             )
         }
     }
