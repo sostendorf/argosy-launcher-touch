@@ -26,7 +26,14 @@ data class EmulatorDef(
     val defaultLaunchMethod: LaunchMethod = LaunchMethod.INTENT,
     val downloadUrl: String? = null,
     val releaseSource: ReleaseSource? = null,
-    val packagePatterns: List<String> = emptyList()
+    val packagePatterns: List<String> = emptyList(),
+    /**
+     * Opts this emulator out of the one-shot FLAG_ACTIVITY_NO_HISTORY that extras-bound Custom
+     * launches otherwise get. Set it for an emulator whose activity is finished the moment it is
+     * navigated away from, which drops the player straight back into Argosy instead of into the
+     * game. Verified on device per emulator - the flag is harmless for most of them.
+     */
+    val keepInRecents: Boolean = false
 )
 
 data class EmulatorFamily(
@@ -149,14 +156,11 @@ sealed class LaunchConfig {
          * A ROM that rides on the intent's data URI hands the emulator a grant and leaves it in
          * recents; one that rides on extras is launched as a one-shot instead.
          */
-        override fun defaultIntentFlags(emulator: EmulatorDef): Int =
-            if (emulator.launchAction == Intent.ACTION_VIEW) {
-                defaultIntentFlags
-            } else {
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                    Intent.FLAG_ACTIVITY_NO_HISTORY
-            }
+        override fun defaultIntentFlags(emulator: EmulatorDef): Int {
+            if (emulator.launchAction == Intent.ACTION_VIEW) return defaultIntentFlags
+            val base = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            return if (emulator.keepInRecents) base else base or Intent.FLAG_ACTIVITY_NO_HISTORY
+        }
 
         override val defaultMimeType: String
             get() = mimeTypeOverride ?: "application/octet-stream"
@@ -723,6 +727,7 @@ object EmulatorRegistry {
                 activityClass = "xyz.aethersx2.android.EmulationActivity",
                 intentExtras = mapOf("bootPath" to ExtraValue.FileUriString)
             ),
+            keepInRecents = true,
             downloadUrl = "https://github.com/Trixarian/NetherSX2-patch/releases",
             releaseSource = ReleaseSource.GitHub("Trixarian/NetherSX2-patch")
         ),
@@ -736,7 +741,8 @@ object EmulatorRegistry {
             launchConfig = LaunchConfig.Custom(
                 activityClass = "xyz.aethersx2.android.EmulationActivity",
                 intentExtras = mapOf("bootPath" to ExtraValue.FileUriString)
-            )
+            ),
+            keepInRecents = true
         ),
         EmulatorDef(
             id = "armsx2_refresh",
