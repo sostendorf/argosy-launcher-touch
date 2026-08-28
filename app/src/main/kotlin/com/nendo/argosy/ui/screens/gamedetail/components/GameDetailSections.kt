@@ -1,6 +1,7 @@
 package com.nendo.argosy.ui.screens.gamedetail.components
 
 import androidx.compose.foundation.background
+import com.nendo.argosy.ui.input.LocalTouchUi
 import com.nendo.argosy.ui.util.clickableNoFocus
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -411,6 +412,7 @@ fun ScreenshotsSection(
     gameId: Long = 0L,
     cacheEnabled: Boolean = false
 ) {
+    val touchUi = LocalTouchUi.current
     val cacheManager = com.nendo.argosy.ui.common.LocalImageCacheManager.current
     LaunchedEffect(gameId, cacheEnabled, screenshots) {
         if (!cacheEnabled || cacheManager == null || gameId == 0L) return@LaunchedEffect
@@ -437,8 +439,13 @@ fun ScreenshotsSection(
         var scrollDirection by remember { mutableIntStateOf(1) }
         val isActiveUpdated by rememberUpdatedState(isActive)
 
-        LaunchedEffect(screenshots) {
-            if (screenshots.size <= 1) return@LaunchedEffect
+        /**
+         * The idle carousel advances the strip every few seconds unless the section holds focus.
+         * Touch has no focus to hold, so it never paused - the screenshots crawled sideways under
+         * the finger trying to scroll them. A finger moves this strip; nothing else needs to.
+         */
+        LaunchedEffect(screenshots, touchUi) {
+            if (touchUi || screenshots.size <= 1) return@LaunchedEffect
 
             while (true) {
                 delay(3000)
@@ -478,7 +485,7 @@ fun ScreenshotsSection(
                         .height(135.dp)
                         .clip(RoundedCornerShape(Dimens.radiusMd))
                         .clickableNoFocus {
-                            if (isActive) {
+                            if (touchUi || isActive) {
                                 onScreenshotTap(index)
                             } else {
                                 onSectionFocus()
@@ -518,6 +525,7 @@ fun RelatedGamesSection(
     onPositioned: (Int) -> Unit,
     onSectionFocus: () -> Unit = {}
 ) {
+    val touchUi = LocalTouchUi.current
     val boxArtStyle = LocalBoxArtStyle.current
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val cardWidth = screenWidth * 0.12f
@@ -565,7 +573,11 @@ fun RelatedGamesSection(
                         modifier = Modifier
                             .fillMaxSize()
                             .clickableNoFocus {
-                                if (isActive) onGameTap(related.id) else onSectionFocus()
+                                if (touchUi || isActive) {
+                                    onGameTap(related.id)
+                                } else {
+                                    onSectionFocus()
+                                }
                             }
                     )
                 }
