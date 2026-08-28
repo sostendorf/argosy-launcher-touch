@@ -62,10 +62,12 @@ import com.nendo.argosy.domain.model.SyncProgress
 import com.nendo.argosy.ui.input.HardcoreConflictInputHandler
 import com.nendo.argosy.ui.input.LocalModifiedInputHandler
 import com.nendo.argosy.ui.input.LocalInputDispatcher
+import com.nendo.argosy.ui.input.LocalTouchUi
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.screens.gamedetail.components.AchievementListOverlay
 import com.nendo.argosy.ui.screens.gamedetail.components.AchievementsSection
 import com.nendo.argosy.ui.screens.gamedetail.components.ExpandedHeader
+import com.nendo.argosy.ui.screens.gamedetail.components.PrimaryActionUi
 import com.nendo.argosy.ui.screens.gamedetail.components.StickyCollapsedHeader
 import com.nendo.argosy.ui.screens.gamedetail.components.DescriptionSection
 import com.nendo.argosy.ui.screens.gamedetail.components.GameDetailMenu
@@ -484,6 +486,7 @@ private fun GameDetailContent(
     localModifiedFocusIndex: Int
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val touchUi = LocalTouchUi.current
     val pickerState by viewModel.pickerModalDelegate.state.collectAsState()
     val isAnySyncing = uiState.isSyncing || uiState.syncOverlayState != null
     val showAnyOverlay = uiState.showMoreOptions || uiState.showPlayOptions ||
@@ -521,7 +524,8 @@ private fun GameDetailContent(
         hasSaveSync = contentHasSaveSync,
         hasRelated = uiState.relatedGames.isNotEmpty(),
         hasPerGameSettings = !game.isSteamGame && !game.isAndroidApp &&
-            uiState.downloadStatus == GameDownloadStatus.DOWNLOADED
+            uiState.downloadStatus == GameDownloadStatus.DOWNLOADED,
+        showPlayItem = !touchUi
     )
 
     val menuDisplayState = GameDetailMenuState(
@@ -702,7 +706,18 @@ private fun GameDetailContent(
                                     .verticalScroll(scrollState)
                                     .padding(start = Dimens.spacingMd, top = Dimens.spacingXl, end = Dimens.spacingXl, bottom = Dimens.spacingXl)
                             ) {
-                                ExpandedHeader(game = game)
+                                ExpandedHeader(
+                                    game = game,
+                                    primaryAction = if (touchUi) {
+                                        PrimaryActionUi(
+                                            downloadStatus = uiState.downloadStatus,
+                                            downloadProgress = uiState.downloadProgress,
+                                            onClick = { viewModel.primaryAction() }
+                                        )
+                                    } else {
+                                        null
+                                    }
+                                )
 
                                 Spacer(modifier = Modifier.height(Dimens.spacingXl))
 

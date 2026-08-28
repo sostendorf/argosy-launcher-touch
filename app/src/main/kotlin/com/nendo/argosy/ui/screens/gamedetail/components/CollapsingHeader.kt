@@ -5,6 +5,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import com.nendo.argosy.ui.screens.gamedetail.GameDownloadStatus
+import com.nendo.argosy.ui.theme.LocalLauncherTheme
+import com.nendo.argosy.ui.util.clickableNoFocus
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -107,10 +110,24 @@ fun StickyCollapsedHeader(
     }
 }
 
+/**
+ * The primary action as the header draws it: what the button should say and do right now.
+ *
+ * Passed in rather than derived here because the same decision already drives the left menu's play
+ * item, and two places computing "is this downloaded" from the same state is how they end up
+ * disagreeing. Null means no button - the surfaces that keep the action in the menu pass nothing.
+ */
+data class PrimaryActionUi(
+    val downloadStatus: GameDownloadStatus,
+    val downloadProgress: Float,
+    val onClick: () -> Unit
+)
+
 @Composable
 fun ExpandedHeader(
     game: GameDetailUi,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    primaryAction: PrimaryActionUi? = null
 ) {
     val aspectRatioClass = LocalUiScale.current.aspectRatioClass
     val isWideDisplay = aspectRatioClass == AspectRatioClass.WIDE ||
@@ -120,8 +137,64 @@ fun ExpandedHeader(
         if (isWideDisplay) {
             LandscapeExpandedHeader(game = game)
         } else {
-            PortraitExpandedHeader(game = game, maxWidth = maxWidth)
+            PortraitExpandedHeader(
+                game = game,
+                maxWidth = maxWidth,
+                primaryAction = primaryAction
+            )
         }
+    }
+}
+
+/**
+ * The download/play button, sized to the cover it sits under.
+ *
+ * Colour carries the state so it reads before the word does: green once the game is on the device,
+ * orange while it is not, the error colour for a failure. Those come from the theme's semantic
+ * colours, which is where green and orange are already defined for exactly this kind of signal.
+ */
+@Composable
+private fun PrimaryActionButton(
+    action: PrimaryActionUi,
+    modifier: Modifier = Modifier
+) {
+    val semantic = LocalLauncherTheme.current.semanticColors
+    val label = when (action.downloadStatus) {
+        GameDownloadStatus.EXTRACTING -> "Extracting…"
+        GameDownloadStatus.DOWNLOADING -> "${(action.downloadProgress * 100).toInt()}%"
+        GameDownloadStatus.QUEUED -> "Queued"
+        GameDownloadStatus.WAITING_FOR_STORAGE -> "No Space"
+        GameDownloadStatus.PAUSED -> "Resume"
+        GameDownloadStatus.FAILED -> "Retry"
+        GameDownloadStatus.DOWNLOADED -> "Play"
+        GameDownloadStatus.NEEDS_INSTALL -> "Install"
+        GameDownloadStatus.NOT_DOWNLOADED -> "Download"
+    }
+    val containerColor = when (action.downloadStatus) {
+        GameDownloadStatus.DOWNLOADED -> semantic.success
+        GameDownloadStatus.FAILED -> MaterialTheme.colorScheme.error
+        GameDownloadStatus.DOWNLOADING,
+        GameDownloadStatus.EXTRACTING,
+        GameDownloadStatus.QUEUED -> semantic.progress
+        else -> semantic.warning
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(Dimens.buttonHeight)
+            .clip(RoundedCornerShape(Dimens.radiusControl))
+            .background(containerColor)
+            .clickableNoFocus(action.onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onPrimary,
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 
@@ -173,7 +246,8 @@ private fun LandscapeExpandedHeader(
 private fun PortraitExpandedHeader(
     game: GameDetailUi,
     maxWidth: androidx.compose.ui.unit.Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    primaryAction: PrimaryActionUi? = null
 ) {
     val boxArtStyle = LocalBoxArtStyle.current
     val coverAspectRatio = if (boxArtStyle.nativeAspectRatio) {
@@ -194,21 +268,30 @@ private fun PortraitExpandedHeader(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
         ) {
-            if (game.boxSpinePath != null && game.coverPath?.startsWith("/") == true) {
-                Box3dCover(
-                    frontPath = game.coverPath,
-                    spinePath = game.boxSpinePath,
-                    backPath = game.boxBackPath,
-                    modifier = Modifier.height(coverHeight)
-                )
-            } else {
-                CoverArtImage(
-                    coverPath = game.coverPath,
-                    contentDescription = game.title,
-                    modifier = Modifier
-                        .widthIn(max = coverWidth)
-                        .height(coverHeight)
-                )
+            Column(
+                modifier = Modifier.width(coverWidth),
+                verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+            ) {
+                if (game.boxSpinePath != null && game.coverPath?.startsWith("/") == true) {
+                    Box3dCover(
+                        frontPath = game.coverPath,
+                        spinePath = game.boxSpinePath,
+                        backPath = game.boxBackPath,
+                        modifier = Modifier.height(coverHeight)
+                    )
+                } else {
+                    CoverArtImage(
+                        coverPath = game.coverPath,
+                        contentDescription = game.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(coverHeight)
+                    )
+                }
+
+                primaryAction?.let { action ->
+                    PrimaryActionButton(action = action)
+                }
             }
 
             Column(

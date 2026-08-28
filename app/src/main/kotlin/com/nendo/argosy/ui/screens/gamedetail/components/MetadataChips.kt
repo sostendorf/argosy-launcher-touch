@@ -190,7 +190,7 @@ fun StatusChip(statusValue: String?) {
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                 RoundedCornerShape(Dimens.radiusSm)
             )
-            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.radiusSm)
+            .padding(horizontal = Dimens.spacingSm, vertical = Dimens.radiusSm)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -202,10 +202,18 @@ fun StatusChip(statusValue: String?) {
                 tint = status.color,
                 modifier = Modifier.size(Dimens.iconXs)
             )
+            /**
+             * A status is one word and has to stay on one line. Beside a cover on a phone this chip
+             * gets barely half the width, and left to wrap it breaks mid-word inside its own pill,
+             * which looks like a rendering fault rather than a label.
+             */
             Text(
                 text = status.label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }

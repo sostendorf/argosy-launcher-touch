@@ -69,14 +69,19 @@ data class MenuLayoutState(
     val hasSocialAccount: Boolean = false,
     val hasSaveSync: Boolean = false,
     val hasRelated: Boolean = false,
-    val hasPerGameSettings: Boolean = false
+    val hasPerGameSettings: Boolean = false,
+    /**
+     * The touch layout draws the primary action as a button under the cover art instead. Keeping it
+     * in the rail as well would put the same control on screen twice, three inches apart.
+     */
+    val showPlayItem: Boolean = true
 )
 
 sealed class MenuItem(
     val key: String,
     val visibleWhen: (MenuLayoutState) -> Boolean = { true }
 ) {
-    data object Play : MenuItem("play")
+    data object Play : MenuItem("play", visibleWhen = { it.showPlayItem })
     data object Saves : MenuItem("saves", visibleWhen = { it.hasSaveSync })
     data object Favorite : MenuItem("favorite")
     data object Privacy : MenuItem("privacy", visibleWhen = { it.hasSocialAccount })
