@@ -563,7 +563,7 @@ class GameDetailViewModel @Inject constructor(
 
             variantScanner.scanForVariants(game)
             val hasVariants = variantResolver.getVariantOptions(game) != null
-            val manageableFileCount = gameFileDao.getFilesForGame(gameId).size
+            val hasManageableFileRows = downloadDelegate.buildManageRows(gameId) != null
 
             val downloadSizeBytes = when {
                 game.isMultiDisc -> gameDiscDao.getTotalFileSize(gameId)
@@ -603,7 +603,7 @@ class GameDetailViewModel @Inject constructor(
                     saveStatusInfo = saveStatusInfo,
                     updateFiles = updateFilesUi,
                     dlcFiles = dlcFilesUi,
-                    hasManageableFiles = manageableFileCount > 0,
+                    hasManageableFiles = hasManageableFileRows,
                     hasVariants = hasVariants,
                     siblingGameIds = siblingIds,
                     currentGameIndex = currentIndex,
@@ -865,7 +865,11 @@ class GameDetailViewModel @Inject constructor(
     fun showFilesPicker() {
         toggleMoreOptions()
         viewModelScope.launch {
-            val built = downloadDelegate.buildManageRows(currentGameId) ?: return@launch
+            val built = downloadDelegate.buildManageRows(currentGameId)
+            if (built == null) {
+                notificationManager.showError("No files to manage for this game")
+                return@launch
+            }
             val (rows, files, versions) = built
             pickerModalDelegate.showFilePicker(rows, files, versions, manageMode = true)
         }

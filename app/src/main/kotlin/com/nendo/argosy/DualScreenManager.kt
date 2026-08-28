@@ -2570,7 +2570,11 @@ class DualScreenManager(
 
     fun promptDualManageFilePicker(gameId: Long) {
         scope.launch(Dispatchers.IO) {
-            val setup = filePickerFlow.buildManageRows(gameId) ?: return@launch
+            val setup = filePickerFlow.buildManageRows(gameId)
+            if (setup == null) {
+                notificationManager.showError("No files to manage for this game")
+                return@launch
+            }
             _dualGameDetailState.update { state ->
                 state?.takeIf { it.gameId == gameId }?.copy(
                     modalType = ActiveModal.FILE_PICKER,
