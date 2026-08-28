@@ -16,7 +16,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -40,10 +43,24 @@ fun ScreenshotViewerOverlay(
     var cacheLoadFailed by remember(currentIndex) { mutableStateOf(false) }
     val useRemote = cacheLoadFailed || screenshot.cachedPath == null
 
+    val swipeThreshold = with(LocalDensity.current) { 48.dp.toPx() }
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.95f))
+            .pointerInput(currentIndex) {
+                var totalDragX = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { totalDragX = 0f },
+                    onDragEnd = {
+                        when {
+                            totalDragX < -swipeThreshold -> onNavigate(1)
+                            totalDragX > swipeThreshold -> onNavigate(-1)
+                        }
+                    },
+                    onHorizontalDrag = { _, dragAmount -> totalDragX += dragAmount }
+                )
+            }
     ) {
         if (useRemote) {
             AsyncImage(

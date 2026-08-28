@@ -74,7 +74,12 @@ data class MenuLayoutState(
      * The touch layout draws the primary action as a button under the cover art instead. Keeping it
      * in the rail as well would put the same control on screen twice, three inches apart.
      */
-    val showPlayItem: Boolean = true
+    val showPlayItem: Boolean = true,
+    /**
+     * The rail's lower half is jump links to sections of the same scrolling page. A finger reaches
+     * those by scrolling, so touch drops them and the rail with them.
+     */
+    val showJumpItems: Boolean = true
 )
 
 sealed class MenuItem(
@@ -87,11 +92,11 @@ sealed class MenuItem(
     data object Privacy : MenuItem("privacy", visibleWhen = { it.hasSocialAccount })
     data object PerGameSettings : MenuItem("per_game_settings", visibleWhen = { it.hasPerGameSettings })
     data object Options : MenuItem("options")
-    data object Details : MenuItem("details")
-    data object Description : MenuItem("description", visibleWhen = { it.hasDescription })
-    data object Screenshots : MenuItem("screenshots", visibleWhen = { it.hasScreenshots })
-    data object Achievements : MenuItem("achievements", visibleWhen = { it.hasAchievements })
-    data object RelatedGames : MenuItem("related", visibleWhen = { it.hasRelated })
+    data object Details : MenuItem("details", visibleWhen = { it.showJumpItems })
+    data object Description : MenuItem("description", visibleWhen = { it.showJumpItems && it.hasDescription })
+    data object Screenshots : MenuItem("screenshots", visibleWhen = { it.showJumpItems && it.hasScreenshots })
+    data object Achievements : MenuItem("achievements", visibleWhen = { it.showJumpItems && it.hasAchievements })
+    data object RelatedGames : MenuItem("related", visibleWhen = { it.showJumpItems && it.hasRelated })
 
     companion object {
         val ALL: List<MenuItem>

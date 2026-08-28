@@ -37,7 +37,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -123,11 +125,27 @@ data class PrimaryActionUi(
     val onClick: () -> Unit
 )
 
+/**
+ * One of the game's actions, as an icon under the primary button.
+ *
+ * These are the items the left rail carried that actually do something - favourite, saves, privacy,
+ * per-game settings, more options. The rail's other entries were jump links to sections further down
+ * the same scrolling page, which a finger reaches by scrolling.
+ */
+data class GameActionUi(
+    val key: String,
+    val icon: ImageVector,
+    val tint: Color? = null,
+    val contentDescription: String,
+    val onClick: () -> Unit
+)
+
 @Composable
 fun ExpandedHeader(
     game: GameDetailUi,
     modifier: Modifier = Modifier,
-    primaryAction: PrimaryActionUi? = null
+    primaryAction: PrimaryActionUi? = null,
+    actions: List<GameActionUi> = emptyList()
 ) {
     val aspectRatioClass = LocalUiScale.current.aspectRatioClass
     val isWideDisplay = aspectRatioClass == AspectRatioClass.WIDE ||
@@ -140,7 +158,8 @@ fun ExpandedHeader(
             PortraitExpandedHeader(
                 game = game,
                 maxWidth = maxWidth,
-                primaryAction = primaryAction
+                primaryAction = primaryAction,
+                actions = actions
             )
         }
     }
@@ -198,6 +217,42 @@ private fun PrimaryActionButton(
     }
 }
 
+/**
+ * The action icons, sharing the width of the cover above them. Each takes an equal share, so two
+ * actions get generous targets and five still get usable ones; the set is small and varies with
+ * what the game supports.
+ */
+@Composable
+private fun GameActionRow(
+    actions: List<GameActionUi>,
+    modifier: Modifier = Modifier
+) {
+    if (actions.isEmpty()) return
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
+    ) {
+        actions.forEach { action ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(Dimens.buttonHeight)
+                    .clip(RoundedCornerShape(Dimens.radiusControl))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                    .clickableNoFocus(action.onClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = action.icon,
+                    contentDescription = action.contentDescription,
+                    tint = action.tint ?: MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(Dimens.iconSm)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun LandscapeExpandedHeader(
     game: GameDetailUi,
@@ -245,7 +300,8 @@ private fun PortraitExpandedHeader(
     game: GameDetailUi,
     maxWidth: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
-    primaryAction: PrimaryActionUi? = null
+    primaryAction: PrimaryActionUi? = null,
+    actions: List<GameActionUi> = emptyList()
 ) {
     val boxArtStyle = LocalBoxArtStyle.current
     val coverAspectRatio = if (boxArtStyle.nativeAspectRatio) {
@@ -295,6 +351,8 @@ private fun PortraitExpandedHeader(
                 primaryAction?.let { action ->
                     PrimaryActionButton(action = action)
                 }
+
+                GameActionRow(actions = actions)
             }
 
             GameStatsSection(

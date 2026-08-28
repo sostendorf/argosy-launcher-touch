@@ -68,6 +68,16 @@ import com.nendo.argosy.ui.screens.gamedetail.components.AchievementListOverlay
 import com.nendo.argosy.ui.screens.gamedetail.components.AchievementsSection
 import com.nendo.argosy.ui.screens.gamedetail.components.ExpandedHeader
 import com.nendo.argosy.ui.screens.gamedetail.components.PrimaryActionUi
+import com.nendo.argosy.ui.screens.gamedetail.components.GameActionUi
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import com.nendo.argosy.ui.theme.ALauncherColors
 import com.nendo.argosy.ui.screens.gamedetail.components.StickyCollapsedHeader
 import com.nendo.argosy.ui.screens.gamedetail.components.DescriptionSection
 import com.nendo.argosy.ui.screens.gamedetail.components.GameDetailMenu
@@ -525,7 +535,8 @@ private fun GameDetailContent(
         hasRelated = uiState.relatedGames.isNotEmpty(),
         hasPerGameSettings = !game.isSteamGame && !game.isAndroidApp &&
             uiState.downloadStatus == GameDownloadStatus.DOWNLOADED,
-        showPlayItem = !touchUi
+        showPlayItem = !touchUi,
+        showJumpItems = !touchUi
     )
 
     val menuDisplayState = GameDetailMenuState(
@@ -649,7 +660,7 @@ private fun GameDetailContent(
                 val isCompactMenu = displayAspectRatio <= 1.3f
 
                 Row(modifier = Modifier.fillMaxSize()) {
-                    // Left Menu (compact: icon-only, normal: 30%)
+                    if (!touchUi) {
                     Box(
                         modifier = Modifier
                             .then(
@@ -695,8 +706,8 @@ private fun GameDetailContent(
                                 )
                         )
                     }
+                    }
 
-                    // Right Content (70%)
                     Column(modifier = Modifier.weight(1f)) {
 
                         Box(modifier = Modifier.weight(1f)) {
@@ -716,6 +727,73 @@ private fun GameDetailContent(
                                         )
                                     } else {
                                         null
+                                    },
+                                    actions = if (touchUi) {
+                                        buildList {
+                                            if (contentHasSaveSync) {
+                                                add(
+                                                    GameActionUi(
+                                                        key = "saves",
+                                                        icon = Icons.Default.Sync,
+                                                        contentDescription = "Sync saves",
+                                                        onClick = { viewModel.syncSavesNow() }
+                                                    )
+                                                )
+                                            }
+                                            add(
+                                                GameActionUi(
+                                                    key = "favorite",
+                                                    icon = if (game.isFavorite) {
+                                                        Icons.Default.Favorite
+                                                    } else {
+                                                        Icons.Default.FavoriteBorder
+                                                    },
+                                                    tint = if (game.isFavorite) {
+                                                        ALauncherColors.StarGold
+                                                    } else {
+                                                        null
+                                                    },
+                                                    contentDescription = "Favourite",
+                                                    onClick = { viewModel.toggleFavorite() }
+                                                )
+                                            )
+                                            if (uiState.hasSocialAccount) {
+                                                add(
+                                                    GameActionUi(
+                                                        key = "privacy",
+                                                        icon = if (uiState.isPrivate) {
+                                                            Icons.Outlined.VisibilityOff
+                                                        } else {
+                                                            Icons.Outlined.Visibility
+                                                        },
+                                                        contentDescription = "Privacy",
+                                                        onClick = { viewModel.togglePrivacy() }
+                                                    )
+                                                )
+                                            }
+                                            if (!game.isSteamGame && !game.isAndroidApp &&
+                                                uiState.downloadStatus == GameDownloadStatus.DOWNLOADED
+                                            ) {
+                                                add(
+                                                    GameActionUi(
+                                                        key = "per_game_settings",
+                                                        icon = Icons.Default.Settings,
+                                                        contentDescription = "Per-game settings",
+                                                        onClick = { viewModel.showPerGameSettings() }
+                                                    )
+                                                )
+                                            }
+                                            add(
+                                                GameActionUi(
+                                                    key = "options",
+                                                    icon = Icons.Default.Tune,
+                                                    contentDescription = "More options",
+                                                    onClick = { viewModel.toggleMoreOptions() }
+                                                )
+                                            )
+                                        }
+                                    } else {
+                                        emptyList()
                                     }
                                 )
 
