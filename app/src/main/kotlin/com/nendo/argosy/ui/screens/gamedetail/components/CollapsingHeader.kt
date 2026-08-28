@@ -253,7 +253,12 @@ private fun PortraitExpandedHeader(
     } else {
         boxArtStyle.aspectRatio
     }
-    val coverWidth = maxWidth * 0.4f
+    /**
+     * The cover column takes half the row, so the art and the button under it are never narrower
+     * than the stat tiles opposite. At the old 40% the art was the smaller half of a two-column
+     * layout while being the thing the page is about.
+     */
+    val coverWidth = (maxWidth - Dimens.spacingMd) / 2
     val coverHeight = coverWidth / coverAspectRatio
 
     Column(
