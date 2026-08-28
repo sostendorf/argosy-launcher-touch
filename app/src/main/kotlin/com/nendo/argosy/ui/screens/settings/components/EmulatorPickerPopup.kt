@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.style.TextOverflow
 import com.nendo.argosy.data.emulator.EmulatorDef
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.remote.github.VersionFormatter
@@ -198,7 +199,7 @@ fun EmulatorPickerPopup(
                                 downloadState is EmulatorDownloadState.WaitingForInstall ->
                                     "Installing..."
                                 downloadState is EmulatorDownloadState.Failed ->
-                                    "Download error"
+                                    downloadState.message.ifBlank { "Download error" }
                                 updateInfo != null -> {
                                     val current = updateInfo.currentVersion?.let { VersionFormatter.formatForDisplay(it) } ?: "?"
                                     val latest = VersionFormatter.formatForDisplay(updateInfo.latestVersion)
@@ -247,7 +248,7 @@ fun EmulatorPickerPopup(
                                 downloadState is EmulatorDownloadState.WaitingForInstall ->
                                     "Installing..."
                                 downloadState is EmulatorDownloadState.Failed ->
-                                    "Download error"
+                                    downloadState.message.ifBlank { "Download error" }
                                 isPlayStore -> "Play Store"
                                 else -> "GitHub"
                             }
@@ -363,7 +364,9 @@ private fun EmulatorPickerItem(
                         isFailed -> MaterialTheme.colorScheme.error
                         isHighlighted -> focusContent.copy(alpha = 0.7f * contentAlpha)
                         else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = contentAlpha)
-                    }
+                    },
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 

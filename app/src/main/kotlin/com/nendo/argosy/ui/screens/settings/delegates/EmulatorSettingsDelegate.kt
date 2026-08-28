@@ -39,6 +39,7 @@ import com.nendo.argosy.ui.screens.settings.VariantOption
 import com.nendo.argosy.ui.screens.settings.VariantPickerInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,6 +74,7 @@ class EmulatorSettingsDelegate @Inject constructor(
 ) {
     companion object {
         private const val TAG = "EmulatorSettingsDelegate"
+        private const val EMULATOR_ERROR_DISMISS_MS = 4000L
     }
     private val _state = MutableStateFlow(EmulatorState())
     val state: StateFlow<EmulatorState> = _state.asStateFlow()
@@ -220,7 +222,7 @@ class EmulatorSettingsDelegate @Inject constructor(
                         // If no variant stored and emulator supports GitHub updates,
                         // fetch fresh to allow variant selection
                         if (updateInfo.installedVariant == null && emulator.def.releaseSource != null) {
-                            fetchAndDownloadEmulator(emulator.def)
+                            fetchAndDownloadEmulator(emulator.def, scope)
                         } else {
                             downloadEmulatorUpdate(
                                 emulatorId = updateInfo.emulatorId,
@@ -240,7 +242,7 @@ class EmulatorSettingsDelegate @Inject constructor(
                     val emulator = info.downloadableEmulators.getOrNull(downloadIndex) ?: return@launch
 
                     if (emulator.releaseSource != null) {
-                        fetchAndDownloadEmulator(emulator)
+                        fetchAndDownloadEmulator(emulator, scope)
                     } else {
                         emulator.downloadUrl?.let { _openUrlEvent.emit(it) }
                     }
@@ -818,7 +820,10 @@ class EmulatorSettingsDelegate @Inject constructor(
         }
     }
 
-    private suspend fun fetchAndDownloadEmulator(emulator: com.nendo.argosy.data.emulator.EmulatorDef) {
+    private suspend fun fetchAndDownloadEmulator(
+        emulator: com.nendo.argosy.data.emulator.EmulatorDef,
+        scope: CoroutineScope
+    ) {
         _state.update { state ->
             val info = state.emulatorPickerInfo ?: return@update state
             state.copy(
@@ -874,6 +879,29 @@ class EmulatorSettingsDelegate @Inject constructor(
                         )
                     )
                 }
+                scheduleEmulatorPickerErrorDismissal(scope)
+            }
+        }
+    }
+
+    /**
+     * A failed fetch leaves the picker non-Idle, which disables every other row and makes
+     * confirmEmulatorPickerSelection return early. Nothing else clears it, so the picker stays
+     * dead until it is closed and reopened; this returns it to Idle the way
+     * EmulatorDownloadManager.scheduleErrorDismissal does for the download path.
+     */
+    private fun scheduleEmulatorPickerErrorDismissal(scope: CoroutineScope) {
+        scope.launch {
+            delay(EMULATOR_ERROR_DISMISS_MS)
+            _state.update { state ->
+                val info = state.emulatorPickerInfo ?: return@update state
+                if (info.downloadState !is EmulatorDownloadState.Failed) return@update state
+                state.copy(
+                    emulatorPickerInfo = info.copy(
+                        downloadState = EmulatorDownloadState.Idle,
+                        downloadingEmulatorId = null
+                    )
+                )
             }
         }
     }
