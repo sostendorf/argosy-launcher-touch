@@ -169,52 +169,33 @@ fun GameHeader(
 
             Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
-                verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-            ) {
-                game.players?.let { players ->
-                    MetadataChip(label = "Players", value = players)
+            GameStatGrid(
+                stats = buildList {
+                    game.players?.let { add(textStat("Players", it)) }
+                    game.rating?.let { add(communityRatingStat(it)) }
+                    add(
+                        userRatingStat(
+                            label = "My Rating",
+                            value = game.userRating,
+                            icon = Icons.Default.Star,
+                            iconColor = ALauncherColors.StarGold
+                        )
+                    )
+                    add(
+                        userRatingStat(
+                            label = "Difficulty",
+                            value = game.userDifficulty,
+                            icon = Icons.Default.Whatshot,
+                            iconColor = ALauncherColors.DifficultyRed
+                        )
+                    )
+                    if (game.playTimeMinutes > 0) add(playTimeStat(game.playTimeMinutes))
+                    completionStat(game.status)?.let { add(it) }
+                    game.timeToBeatMain?.let { add(textStat("Main Story", it)) }
+                    game.timeToBeatExtra?.let { add(textStat("Main + Extras", it)) }
+                    game.timeToBeatCompletionist?.let { add(textStat("Completionist", it)) }
                 }
-                game.rating?.let { rating ->
-                    CommunityRatingChip(rating = rating)
-                }
-                game.timeToBeatMain?.let { time ->
-                    MetadataChip(label = "Main Story", value = time)
-                }
-                game.timeToBeatExtra?.let { time ->
-                    MetadataChip(label = "Main + Extras", value = time)
-                }
-                game.timeToBeatCompletionist?.let { time ->
-                    MetadataChip(label = "Completionist", value = time)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(Dimens.spacingLg))
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
-                verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-            ) {
-                RatingChip(
-                    label = "My Rating",
-                    value = game.userRating,
-                    icon = Icons.Default.Star,
-                    iconColor = ALauncherColors.StarGold
-                )
-                RatingChip(
-                    label = "Difficulty",
-                    value = game.userDifficulty,
-                    icon = Icons.Default.Whatshot,
-                    iconColor = ALauncherColors.DifficultyRed
-                )
-                if (game.playTimeMinutes > 0) {
-                    PlayTimeChip(minutes = game.playTimeMinutes)
-                }
-                game.status?.let { status ->
-                    StatusChip(statusValue = status)
-                }
-            }
+            )
 
             Spacer(modifier = Modifier.height(Dimens.spacingMd))
 

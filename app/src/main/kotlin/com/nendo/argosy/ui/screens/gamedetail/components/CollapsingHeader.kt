@@ -235,9 +235,7 @@ private fun LandscapeExpandedHeader(
         Column(modifier = Modifier.weight(1f)) {
             TitleSection(game = game)
             Spacer(modifier = Modifier.height(Dimens.spacingSm))
-            RatingsRow(game = game)
-            Spacer(modifier = Modifier.height(Dimens.spacingLg))
-            PlayStatsRow(game = game)
+            GameStatsSection(game = game)
         }
     }
 }
@@ -294,13 +292,10 @@ private fun PortraitExpandedHeader(
                 }
             }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-            ) {
-                PortraitRatingsColumn(game = game)
-                PlayStatsColumn(game = game)
-            }
+            GameStatsSection(
+                game = game,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -397,100 +392,42 @@ private fun TitleSection(
     }
 }
 
+/**
+ * Every stat the detail header shows, in one list so one grid can lay them all out at a single
+ * width. They used to be two flow rows of five differently-styled chips, each sized to its own text.
+ */
 @Composable
-private fun RatingChipContent(game: GameDetailUi) {
-    game.players?.let { players ->
-        MetadataChip(label = "Players", value = players)
-    }
-    game.rating?.let { rating ->
-        CommunityRatingChip(rating = rating)
-    }
-    game.timeToBeatMain?.let { time ->
-        MetadataChip(label = "Main Story", value = time)
-    }
-    game.timeToBeatCompletionist?.let { time ->
-        MetadataChip(label = "Completionist", value = time)
-    }
-    RatingChip(
-        label = "My Rating",
-        value = game.userRating,
-        icon = Icons.Default.Star,
-        iconColor = ALauncherColors.StarGold
+private fun gameStats(game: GameDetailUi): List<GameStat> = buildList {
+    game.players?.let { add(textStat("Players", it)) }
+    game.rating?.let { add(communityRatingStat(it)) }
+    add(
+        userRatingStat(
+            label = "My Rating",
+            value = game.userRating,
+            icon = Icons.Default.Star,
+            iconColor = ALauncherColors.StarGold
+        )
     )
-    RatingChip(
-        label = "Difficulty",
-        value = game.userDifficulty,
-        icon = Icons.Default.Whatshot,
-        iconColor = ALauncherColors.DifficultyRed
+    add(
+        userRatingStat(
+            label = "Difficulty",
+            value = game.userDifficulty,
+            icon = Icons.Default.Whatshot,
+            iconColor = ALauncherColors.DifficultyRed
+        )
     )
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun RatingsRow(
-    game: GameDetailUi,
-    modifier: Modifier = Modifier
-) {
-    FlowRow(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
-        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-    ) {
-        RatingChipContent(game)
-    }
+    if (game.playTimeMinutes > 0) add(playTimeStat(game.playTimeMinutes))
+    completionStat(game.status)?.let { add(it) }
+    game.timeToBeatMain?.let { add(textStat("Main Story", it)) }
+    game.timeToBeatCompletionist?.let { add(textStat("Completionist", it)) }
 }
 
 @Composable
-private fun PortraitRatingsColumn(
+private fun GameStatsSection(
     game: GameDetailUi,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
-    ) {
-        RatingChipContent(game)
-    }
-}
-
-@Composable
-private fun PlayStatsRow(
-    game: GameDetailUi,
-    modifier: Modifier = Modifier
-) {
-    if (game.playTimeMinutes > 0 || game.status != null) {
-        Row(
-            modifier = modifier,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
-        ) {
-            if (game.playTimeMinutes > 0) {
-                PlayTimeChip(minutes = game.playTimeMinutes)
-            }
-            game.status?.let { status ->
-                StatusChip(statusValue = status)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlayStatsColumn(
-    game: GameDetailUi,
-    modifier: Modifier = Modifier
-) {
-    if (game.playTimeMinutes > 0 || game.status != null) {
-        Column(
-            modifier = modifier,
-            verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
-        ) {
-            if (game.playTimeMinutes > 0) {
-                PlayTimeChip(minutes = game.playTimeMinutes)
-            }
-            game.status?.let { status ->
-                StatusChip(statusValue = status)
-            }
-        }
-    }
+    GameStatGrid(stats = gameStats(game), modifier = modifier)
 }
 
 @Composable

@@ -2,8 +2,11 @@ package com.nendo.argosy.ui.screens.gamedetail.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,205 +21,161 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.domain.model.CompletionStatus
 import com.nendo.argosy.ui.common.color
 import com.nendo.argosy.ui.common.icon
 import com.nendo.argosy.ui.theme.Dimens
 
+/**
+ * One fact about a game, as the detail screen shows it.
+ *
+ * Every stat is the same shape so every tile can be, which is the point: these were five separate
+ * composables with three corner radii, two padding schemes and two type scales between them, and
+ * they sat in flow rows that gave each tile whatever width its own text happened to need.
+ */
+data class GameStat(
+    val label: String,
+    val value: String,
+    val icon: ImageVector? = null,
+    val iconTint: Color? = null,
+    val isUnset: Boolean = false
+)
+
+/**
+ * The narrowest a tile may be drawn. Column count is derived from the width the grid is actually
+ * given rather than the screen's, because these tiles appear both full-width and in a narrow column
+ * beside the cover art, and the screen's width is the wrong answer in the second case.
+ */
+private val MIN_TILE_WIDTH = 96.dp
+
 @Composable
-fun MetadataChip(label: String, value: String) {
+fun GameStatGrid(
+    stats: List<GameStat>,
+    modifier: Modifier = Modifier
+) {
+    if (stats.isEmpty()) return
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val columns = ((maxWidth / MIN_TILE_WIDTH).toInt()).coerceIn(1, 4)
+        Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+            stats.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+                    row.forEach { stat ->
+                        GameStatTile(stat = stat, modifier = Modifier.weight(1f))
+                    }
+                    repeat(columns - row.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GameStatTile(
+    stat: GameStat,
+    modifier: Modifier = Modifier
+) {
+    val labelColor = if (stat.isUnset) {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val valueColor = if (stat.isUnset) {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
+        modifier = modifier
             .background(
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                 RoundedCornerShape(Dimens.radiusMd)
             )
-            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm)
+            .padding(horizontal = Dimens.spacingSm, vertical = Dimens.spacingSm)
     ) {
         Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            text = stat.label,
+            style = MaterialTheme.typography.labelLarge,
+            color = labelColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
         )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun RatingChip(
-    label: String,
-    value: Int,
-    icon: ImageVector,
-    iconColor: Color
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .background(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(Dimens.radiusSm)
-            )
-            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.radiusSm)
-    ) {
-        val isSet = value > 0
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isSet) iconColor else iconColor.copy(alpha = 0.3f),
-                modifier = Modifier.size(Dimens.iconXs)
-            )
-            Text(
-                text = if (isSet) "$value/10" else "--",
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (isSet) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                }
-            )
-        }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isSet) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            stat.icon?.let { icon ->
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = (stat.iconTint ?: valueColor).let {
+                        if (stat.isUnset) it.copy(alpha = 0.3f) else it
+                    },
+                    modifier = Modifier.size(Dimens.iconXs)
+                )
             }
-        )
-    }
-}
-
-@Composable
-fun CommunityRatingChip(rating: Float) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .background(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(Dimens.radiusSm)
-            )
-            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.radiusSm)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
-        ) {
-            Icon(
-                imageVector = Icons.Default.People,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(Dimens.iconXs)
-            )
             Text(
-                text = "${rating.toInt()}%",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                text = stat.value,
+                style = MaterialTheme.typography.bodySmall,
+                color = valueColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-        Text(
-            text = "Rating",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
-@Composable
-fun PlayTimeChip(minutes: Int) {
-    val displayTime = when {
+fun textStat(label: String, value: String): GameStat = GameStat(label = label, value = value)
+
+fun communityRatingStat(rating: Float): GameStat = GameStat(
+    label = "Rating",
+    value = "${rating.toInt()}%",
+    icon = Icons.Default.People
+)
+
+fun userRatingStat(label: String, value: Int, icon: ImageVector, iconColor: Color): GameStat {
+    val isSet = value > 0
+    return GameStat(
+        label = label,
+        value = if (isSet) "$value/10" else "--",
+        icon = icon,
+        iconTint = iconColor,
+        isUnset = !isSet
+    )
+}
+
+fun playTimeStat(minutes: Int): GameStat = GameStat(
+    label = "Play Time",
+    value = when {
         minutes < 60 -> "${minutes}m"
         minutes < 600 -> {
             val hours = minutes / 60
             val mins = minutes % 60
             if (mins > 0) "${hours}h ${mins}m" else "${hours}h"
         }
-        else -> {
-            val hours = minutes / 60
-            "${hours.formatWithCommas()}h"
-        }
-    }
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .background(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(Dimens.radiusSm)
-            )
-            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.radiusSm)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Schedule,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(Dimens.iconXs)
-            )
-            Text(
-                text = displayTime,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        Text(
-            text = "Play Time",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
+        else -> "${(minutes / 60).formatWithCommas()}h"
+    },
+    icon = Icons.Default.Schedule
+)
 
-@Composable
-fun StatusChip(statusValue: String?) {
-    val status = CompletionStatus.fromApiValue(statusValue) ?: return
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .background(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(Dimens.radiusSm)
-            )
-            .padding(horizontal = Dimens.spacingSm, vertical = Dimens.radiusSm)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
-        ) {
-            Icon(
-                imageVector = status.icon,
-                contentDescription = null,
-                tint = status.color,
-                modifier = Modifier.size(Dimens.iconXs)
-            )
-            /**
-             * A status is one word and has to stay on one line. Beside a cover on a phone this chip
-             * gets barely half the width, and left to wrap it breaks mid-word inside its own pill,
-             * which looks like a rendering fault rather than a label.
-             */
-            Text(
-                text = status.label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                softWrap = false,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-        }
-    }
+fun completionStat(statusValue: String?): GameStat? {
+    val status = CompletionStatus.fromApiValue(statusValue) ?: return null
+    return GameStat(
+        label = "Status",
+        value = status.label,
+        icon = status.icon,
+        iconTint = status.color
+    )
 }
 
 private fun Int.formatWithCommas(): String {
