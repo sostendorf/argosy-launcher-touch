@@ -715,7 +715,12 @@ private fun GameDetailContent(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .verticalScroll(scrollState)
-                                    .padding(start = Dimens.spacingMd, top = Dimens.spacingXl, end = Dimens.spacingXl, bottom = Dimens.spacingXl)
+                                    .padding(
+                                        start = if (touchUi) Dimens.spacingLg else Dimens.spacingMd,
+                                        top = Dimens.spacingXl,
+                                        end = if (touchUi) Dimens.spacingLg else Dimens.spacingXl,
+                                        bottom = Dimens.spacingXl
+                                    )
                             ) {
                                 ExpandedHeader(
                                     game = game,

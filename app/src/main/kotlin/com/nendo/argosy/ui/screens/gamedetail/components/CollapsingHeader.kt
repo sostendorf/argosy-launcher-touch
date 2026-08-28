@@ -329,7 +329,8 @@ private fun PortraitExpandedHeader(
         ) {
             Column(
                 modifier = Modifier.width(coverWidth),
-                verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+                verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (game.boxSpinePath != null && game.coverPath?.startsWith("/") == true) {
                     Box3dCover(

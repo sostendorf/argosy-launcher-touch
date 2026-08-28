@@ -62,11 +62,20 @@ fun GameStatGrid(
         Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
             stats.chunked(columns).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+                    /**
+                     * A short final row is padded on both sides rather than only the right, so a
+                     * lone tile sits under the middle of the ones above it instead of hanging off
+                     * the left edge of an otherwise full grid.
+                     */
+                    val leftover = columns - row.size
+                    if (leftover > 0) {
+                        Spacer(modifier = Modifier.weight(leftover / 2f))
+                    }
                     row.forEach { stat ->
                         GameStatTile(stat = stat, modifier = Modifier.weight(1f))
                     }
-                    repeat(columns - row.size) {
-                        Spacer(modifier = Modifier.weight(1f))
+                    if (leftover > 0) {
+                        Spacer(modifier = Modifier.weight(leftover / 2f))
                     }
                 }
             }
